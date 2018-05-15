@@ -1,0 +1,18 @@
+package com.dxc.darklight.service;
+
+import java.util.List;
+
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StockNews;
+
+public interface StockInfoService {
+	
+	public void processGetStocksInfo(String stockCd, String bDate, String eDate) throws Exception;
+	public double getMonutofStandardDeviation(int days) throws Exception;
+	public double allSpotCheck(int count, int length)throws Exception;
+	public double computeLevel(double avg, int days)throws Exception;
+	public List<StockNews> getAllStockNews();
+	public void clearDataSet();
+	public boolean checkMonutAndPrice(double avgMonut, double avgPrice, int days);
+	public void saveAndUpateMount(StockModelMount stockModelMount);
+}

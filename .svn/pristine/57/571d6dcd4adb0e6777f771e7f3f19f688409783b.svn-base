@@ -1,0 +1,119 @@
+package com.dxc.darklight.service.impl;
+
+import java.util.Date;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.BlackStockDao;
+import com.dxc.darklight.model.BlackStock;
+import com.dxc.darklight.model.StocksInfoEntity;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.BlackStockService;
+import com.dxc.darklight.service.DealMountModelService;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+import com.dxc.darklight.service.TopNewsStockService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+
+@Service
+public class BlackStockServiceImpl extends BaseService implements BlackStockService {
+	private static final Logger log = LogManager.getLogger(BlackStockServiceImpl.class);
+
+	@Autowired
+	private BlackStockDao blackStockDao;
+
+	public void work() {
+		TopNewsStockService topNewsStockService = ServiceFactory.createTopNewsStockService();
+		BlackStockService blackStockService = ServiceFactory.createBlackStockService();
+		List<TopNewsStock> topNewsList = topNewsStockService.getAllTopNews();
+		if (topNewsList == null || topNewsList.size() <= 0) {
+			return;
+		}
+		TopNewsStock topNewsStock = null;
+		BlackStock blackStock = null;
+		// 处理每一条新闻
+		for (int i = 0; i < topNewsList.size(); i++) {
+			topNewsStock = topNewsList.get(i);
+			String newsId = topNewsStock.getId();
+			log.info("deal with " + newsId);
+			String stockCode = topNewsStock.getStockCode();
+			Date endDate = topNewsStock.getCreateDate();
+			int flag = 0;//
+			// 判断下跌趋势是否满足要求,<-20%=true
+			boolean fallFlag = isFall(stockCode, endDate);
+			if (!fallFlag) {// 已处理，但不是black股票
+				flag = 1;
+				topNewsStockService.updateNewsById(newsId, flag);
+			} else {
+				flag = 2;
+				topNewsStockService.updateNewsById(newsId, flag);// 更新top_new的状态，代表已处理
+				// 判断black_stock中是否已经存在记录并且有效,为true则为不存在或已存在但无效
+				Boolean existedStock = blackStockService.isValidNews(stockCode);
+				if (existedStock) {
+					blackStock = new BlackStock();
+					blackStock.setStockCode(stockCode);
+					blackStock.setStartDate(new Date());
+					blackStock.setCreateDt(new Date());
+					blackStockService.insertBlackStock(blackStock);
+				} else {
+
+				}
+			}
+		}
+	}
+
+	private boolean isFall(String stockCode, Date endDate) {
+		DealMountModelService dealMountModelService = ServiceFactory.createDealMountModelService();
+		String end = DateUtils.getYYYYMMdd(endDate);
+		String begin = DateUtils.getYYYYMMdd(DateUtils.getBeginDateByParam(endDate, 100));// 得到结束前的前N天日期
+		Boolean wave = false;
+		try {
+			List<StocksInfoEntity> dealInfo = CommonUtil.getStockDealInfo(stockCode, begin, end, false);
+			wave = dealMountModelService.stockPriceWave(dealInfo);// 下跌20%与否。。
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return wave;
+	}
+
+	@Override
+	public String insertBlackStock(BlackStock blackStock) {
+		return blackStockDao.insertBlackStock(blackStock);
+	}
+
+	// 返回true（不存在或者已存在但是无效），则加入池中，返回false则抛弃
+	@Override
+	public boolean isValidNews(String stockCd) {
+		List<BlackStock> blackStocks = blackStockDao.getNewsByStockCd(stockCd);
+		// 不为空，则池中已存在该股票的历史黑天鹅数据，则需要根据标志位removed判断其中是否有目前正处于黑天鹅声明周期的数据，
+		if (blackStocks != null && blackStocks.size() > 0) {
+			for (BlackStock blackStock : blackStocks) {
+				int removed = blackStock.getRemoved();
+				if (removed == 1) {
+					return true;
+				}
+			}
+			return false;
+		} else {
+			//
+			return true;
+		}
+	}
+	
+	@Override
+	public List<BlackStock> getAllBlackStocks() {
+		// TODO Auto-generated method stub
+		return blackStockDao.getAllBlackStocks();
+	}
+	
+	public static void main(String[] args) {
+		BlackStockService serviceImpl=ServiceFactory.createBlackStockService(); 
+		serviceImpl.work();
+	}
+}

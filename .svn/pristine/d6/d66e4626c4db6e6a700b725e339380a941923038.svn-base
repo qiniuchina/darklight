@@ -1,0 +1,86 @@
+package com.dxc.darklight.control;
+
+import java.text.ParseException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.json.MappingJackson2JsonView;
+
+import com.dxc.darklight.model.IndividualStockNews;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.service.IndividualStockNewsService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+
+/**
+ * 个股新闻相关接口
+ */
+@Controller
+@RequestMapping("/indistocknews")
+public class IndividualStockNewsController {
+
+	@Autowired
+	private IndividualStockNewsService stockNewsService;
+
+	@RequestMapping(value = "/list", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView listStockNews(String stockCode, HttpSession httpSession) {
+		ModelAndView mv = null;
+		List<IndividualStockNews> stockNewslist = stockNewsService.listIndiStockNews(stockCode);
+		Map<String, Object> data = new HashMap<String, Object>();
+		data.put("stockNewsList", stockNewslist);
+		mv = new ModelAndView("stocknews", data);
+		return mv;
+	}
+
+	/**
+	 * 刷新获取最新新闻
+	 */
+	// id格式/示例: 2017-03-23 02:07,1493193417752689,sz300534
+	@RequestMapping(value = "/refresh", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView refreshStockNews(String id) throws ParseException {
+		List<IndividualStockNews> list = null;
+		String stockCode = id.split(",")[2];
+		if (id == null || "".equals(id)) {
+			list = stockNewsService.listIndiStockNews(stockCode);
+		} else {
+			Date pubDate = DateUtils.parseMinuteTime(id.split(",")[0]);
+			String newsId = id.split(",")[1];
+			list = stockNewsService.refreshIndiStockNews(Long.parseLong(newsId), pubDate, stockCode);
+		}
+		Map<String, Object> data = new HashMap<String, Object>();
+		data.put("refreshNewsList", list);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+
+	/**
+	 * more:加载更多新闻
+	 */
+	// id格式：2017-04-27 03:12,1493260395877272,sh600050
+	@RequestMapping(value = "/more", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView moreStockNews(String id) throws ParseException {
+		List<IndividualStockNews> list = null;
+		String stockCode = id.split(",")[2];
+		if (id == null || "".equals(id)) {
+			list = stockNewsService.listIndiStockNews(stockCode);
+		} else {
+			Date pubDate = DateUtils.parseMinuteTime(id.split(",")[0]);
+			String newsId = id.split(",")[1];
+			list = stockNewsService.stockNewsHistoryList(Long.parseLong(newsId), pubDate, stockCode);
+		}
+		Map<String, Object> data = new HashMap<String, Object>();
+		data.put("moreNewsList", list);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+
+}

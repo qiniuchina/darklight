@@ -1,0 +1,182 @@
+package com.dxc.darklight.dao;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.nutz.dao.Cnd;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.entity.Record;
+import org.nutz.dao.sql.Sql;
+import org.nutz.dao.sql.SqlCallback;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.model.UserStock;
+import com.dxc.darklight.util.DateUtils;
+
+@Repository
+public class UserStockDao extends BaseDao{
+
+	private static final Logger log = LogManager.getLogger(UserStockDao.class);
+	
+	public void insertUserStock(String userId, String stockCode){
+		Sql sql = Sqls.create("insert into user_stock "
+				+ "(user_id,stock_code,create_dtm,create_by) values (@userId,@stockCode,@createDtm,@createBy)");
+		log.debug("insertUserStock run sql: " + sql );
+		sql.params().set("userId", userId);
+		sql.params().set("stockCode", stockCode);
+		sql.params().set("createDtm", new Date());
+		sql.params().set("createBy", userId);
+		dao.execute(sql);
+	}
+
+	public int checkExistStock(String userId, String stockCode) {
+		// TODO Auto-generated method stub
+		int i = dao.count("user_stock", Cnd.where("user_id","=",userId).and("stock_code","=",stockCode).and("is_deleted","=",0));
+		return i;
+	}
+
+	public void deleteFavoriteStock(String stockCode, String userId) {
+		// TODO Auto-generated method stub
+		Sql sql = Sqls.create("update user_stock "
+				+ " set is_deleted = 1  where user_id=@userId and stock_code = @stockCode ");
+		log.debug("deleteFavoriteStock run sql: " + sql );
+		sql.params().set("userId", userId);
+		sql.params().set("stockCode", stockCode);
+		dao.execute(sql);
+	}
+	
+	/**
+	 * 得到所有用户关注的股票信息
+	 * @param null
+	 * @return List<String>
+	 * @throws Exception
+	 */
+	public List<String> getAllUserStockCodes()
+	{
+		Sql sql = Sqls.create("select DISTINCT(stock_code) from user_stock");
+	    sql.setCallback(new SqlCallback() {
+	    	@Override
+	        public Object invoke(Connection conn, ResultSet rs, Sql sql) throws SQLException {
+	            List<String> list = new LinkedList<String>();
+	            while (rs.next())
+	                list.add(rs.getString("stock_code"));
+	            return list;
+	        }
+	    });
+	    dao.execute(sql);
+	    return sql.getList(String.class);
+	}
+	
+	/**
+	 * 得到所有的用户id
+	 * @param null
+	 * @return List<String>
+	 * @throws Exception
+	 */
+	public List<String> getAllUsers()
+	{
+		Sql sql = Sqls.create("select DISTINCT(user_id) from user_stock");
+	    sql.setCallback(new SqlCallback() {
+	    	@Override
+	        public Object invoke(Connection conn, ResultSet rs, Sql sql) throws SQLException {
+	            List<String> list = new LinkedList<String>();
+	            while (rs.next())
+	                list.add(rs.getString("user_id"));
+	            return list;
+	        }
+	    });
+	    dao.execute(sql);
+	    return sql.getList(String.class);
+	}
+	
+	/**
+	 * 保存关注的股票价格
+	 * @param StockCurrentPrice
+	 * @return void
+	 * @throws Exception
+	 */
+	public void saveUserStockCodes(StockCurrentPrice sc) {
+		dao.insert(sc);
+	}
+	
+	
+	/**
+	 * 删除表stock_current_price里面过去time时间前的数据
+	 * @param String
+	 * @return void
+	 * @throws Exception
+	 */
+	public void deletePreviousDataForPrice(String time) {
+		Sql sql = Sqls.create("delete from stock_current_price where create_dtm < '"+ time +"'");
+		dao.execute(sql);
+	}
+
+	
+	/**
+	 * 方法getStockPricesByNumber得到num数量的currentprice实体
+	 * @param int
+	 * @return List<StockCurrentPrice>
+	 * @throws Exception
+	 */
+	public List<StockCurrentPrice> getStockPricesByNumber(String stockCd, int minuts) {
+		
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.MINUTE, minuts);
+		SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		String time = sf.format(cal.getTime());
+		return dao.query(StockCurrentPrice.class, Cnd.wrap("stock_code = '" + stockCd +"' and create_dtm >= '"+ time + "' order by create_dtm desc"));
+	}
+	
+	/**
+	 * 得到当前的价格信息
+	 * @param String
+	 * @param usrId
+	 * @return StockCurrentPrice
+	 * @throws Exception
+	 */
+	public StockCurrentPrice getExistedStockPrice(String stockCd, String usrId) {
+		return dao.fetch(StockCurrentPrice.class, Cnd.wrap("stock_code = '" + stockCd +"' and user_id = '"+ usrId + "' order by create_dtm desc"));
+	}
+	
+	/**
+	 * 得到所有关注了此股票的user信息
+	 * @param String
+	 * @param usrId
+	 * @return StockCurrentPrice
+	 * @throws Exception
+	 */
+	public List<UserStock> getUserIdByStockCd(String stockCd) {
+		return dao.query(UserStock.class, Cnd.wrap("stock_code = '" + stockCd + "' and is_deleted = 0"));
+	}
+	public boolean isHoliday(Date date){
+		String dt=DateUtils.getYYMMddHHmm(date);
+		Sql sql= Sqls.queryRecord("select * from holiday where @dt BETWEEN DATE(start_date) and DATE(end_date)");
+		sql.params().set("dt", dt);
+		dao.execute(sql);
+		List<Record> ls=sql.getList(Record.class);
+		if(ls!=null&&ls.size()>0)
+			return true;
+		return false;
+				
+	}
+	
+	/**
+	 * 得到所有关注了此股票的user信息
+	 * @param String
+	 * @param usrId
+	 * @return StockCurrentPrice
+	 * @throws Exception
+	 */
+	public List<UserStock> getStockCdByUsrId(String usrId) {
+		return dao.query(UserStock.class, Cnd.wrap("user_id = '" + usrId + "' and is_deleted = 0"));
+	}
+}

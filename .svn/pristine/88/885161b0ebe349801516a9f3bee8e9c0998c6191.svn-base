@@ -1,0 +1,51 @@
+package com.dxc.darklight.service;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.dxc.darklight.spider.StockCurrentPriceSpider;
+import com.dxc.darklight.spider.StockDealMountSpider;
+import com.dxc.darklight.spider.StockNewsSpider;
+
+public class ServiceFactory {
+	private static final Logger log = LogManager
+			.getLogger(ServiceFactory.class);
+
+	private static ApplicationContext appContext = new ClassPathXmlApplicationContext(
+			"spring-servlet.xml");
+
+	public static StockNewsService createStockNewsService() {
+		return appContext.getBean(StockNewsService.class);
+	}
+
+	public static IndustryInfoService createIndustryInfoService() {
+		return appContext.getBean(IndustryInfoService.class);
+	}
+
+	public static StockInfoService createStockInfoService() {
+		return appContext.getBean(StockInfoService.class);
+	}
+
+	public static TopNewsStockService createTopNewsStockService() {
+		return appContext.getBean(TopNewsStockService.class);
+	}
+	
+	public static UserStockNewsService createUserStockNewsService() {
+		return appContext.getBean(UserStockNewsService.class);
+	}
+	
+	public static void main(String[] args) {
+		String function = args[0];
+		log.info("Function=" + function);
+		if ("StockNewsSpider".equals(function)) {
+			StockNewsSpider.work();
+		} else if ("StockMountSpider".equals(function)) {
+			StockDealMountSpider.work();
+		} else if ("UserStockNewsSpider".equals(function)) {
+			StockCurrentPriceSpider.work();
+		}
+
+	}
+}

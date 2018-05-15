@@ -1,0 +1,59 @@
+package com.dxc.darklight.model;
+
+import java.io.Serializable;
+
+import org.nutz.dao.entity.annotation.Column;
+import org.nutz.dao.entity.annotation.Table;
+
+@Table("stock_info")
+public class StockInfo implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	@Column("stock_code")
+	private String stockCode;
+	
+	@Column("stock_name")
+	private String stockName;
+
+	@Column("short_name")
+	private String shortName;
+	
+	@Column("key_words")
+	private String keyWords;
+	
+	public String getStockCode() {
+		return stockCode;
+	}
+
+	public void setStockCode(String stockCode) {
+		this.stockCode = stockCode;
+	}
+
+	public String getStockName() {
+		return stockName;
+	}
+
+	public void setStockName(String stockName) {
+		this.stockName = stockName;
+	}
+
+	public String getShortName() {
+		return shortName;
+	}
+
+	public void setShortName(String shortName) {
+		this.shortName = shortName;
+	}
+
+	public String getKeyWords() {
+		return keyWords;
+	}
+
+	public void setKeyWords(String keyWords) {
+		this.keyWords = keyWords;
+	}	
+}

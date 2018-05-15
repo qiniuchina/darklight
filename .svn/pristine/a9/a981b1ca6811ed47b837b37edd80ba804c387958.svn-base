@@ -1,0 +1,31 @@
+package com.dxc.darklight.service;
+
+import java.util.List;
+
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StocksInfoEntity;
+
+public interface DealMountModelService {
+
+	/**
+	 * 计算股票的交易量权值
+	 */
+	/*没有计算结果阶段*/
+	public static final int FAST_ERROR_PHASE = -1;
+	
+	/*快速下跌阶段*/
+	public static final int FAST_DROP_PHASE = 0;
+	
+	/*震荡阶段*/
+	public static final int FAST_SHOCK_PHASE = 1;
+	
+	/*平稳阶段*/
+	public static final int FAST_STABLE_PHASE = 2;
+	
+	//web
+	List<StockModelMount> getStockModelMountList(String userId);
+	StockModelMount getStockModelResult(String stockCode);
+	
+	public Boolean stockPriceWave(List<StocksInfoEntity> dealInfo);
+	public int processModel(List<StocksInfoEntity> dealInfo, String stockCd) throws Exception;
+}

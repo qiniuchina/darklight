@@ -1,0 +1,156 @@
+package com.dxc.darklight.dao;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.UpdateResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.datasource.solr.SolrFactory;
+import com.dxc.darklight.model.StockNews;
+
+@Repository
+public class StockNewsDao extends BaseDao {
+
+	private static final Logger log = LogManager.getLogger(StockNewsDao.class);
+
+	
+
+	public List<StockNews> queryByIdsForSolr(Collection<String> ids) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			SolrDocumentList solrDocumentList = client.getById(ids);
+			return parseSolrDocumentList(solrDocumentList);
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return new ArrayList<StockNews>();
+	}
+
+	public StockNews queryByIdForSolr(String _id) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			SolrDocument solrDocument = client.getById(_id);
+			return parseSolrDocument(solrDocument);
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return null;
+	}
+	
+	private List<StockNews> parseQueryResponse(QueryResponse qr){
+		List<StockNews> objectArray = new ArrayList<StockNews>();
+		if(qr != null && qr.getResults() != null && !qr.getResults().isEmpty()){
+			SolrDocumentList solrDocumentList = qr.getResults();
+			for (SolrDocument solrDocument : solrDocumentList) {
+				StockNews parseSolrDocument = parseSolrDocument(solrDocument);
+				objectArray.add(parseSolrDocument);
+			}
+		}
+		return objectArray;
+	}
+	
+	private List<StockNews> parseSolrDocumentList(SolrDocumentList solrDocumentList){
+		List<StockNews> objectArray = new ArrayList<StockNews>();
+		if(solrDocumentList != null && !solrDocumentList.isEmpty()){
+			for (SolrDocument solrDocument : solrDocumentList) {
+				StockNews parseSolrDocument = parseSolrDocument(solrDocument);
+				objectArray.add(parseSolrDocument);
+			}
+		}
+		return objectArray;
+	}
+	
+	private StockNews parseSolrDocument(SolrDocument solrDocument){
+		StockNews stockNews = new StockNews();
+		stockNews.readFromSolrDocument(solrDocument);
+		return stockNews;
+	}
+
+
+
+
+
+	public void updateForSolr(StockNews stockNews) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			if (stockNews != null) {
+				client.deleteById(stockNews.get_id());
+				client.add(stockNews.toSolrInputDocument());
+			}
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				client.commit();
+			} catch (SolrServerException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				if (client != null) {
+					try {
+						client.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+
+	public int removeByIdForSolr(String _id) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			UpdateResponse deleteById = client.deleteById(_id);
+			client.commit();
+			int status = deleteById.getStatus();
+			return status;
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return -1;
+	}
+
+}

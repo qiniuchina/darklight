@@ -1,0 +1,86 @@
+package com.dxc.darklight.service.impl;
+
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.StockNewsDao;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.StockNewsService;
+
+@Service
+public class StockNewsServiceImpl extends BaseService implements StockNewsService {
+
+	private static final Logger log = LogManager.getLogger(StockNewsServiceImpl.class);
+
+	@Autowired
+	StockNewsDao dao;
+
+	@Override
+	public StockNews queryByIdForSolr(String id)
+	{
+		return dao.queryByIdForSolr(id);
+	}
+	/**
+	 * 插入公司新闻到solr
+	 */
+	@Override
+	public void updateForSolr(StockNews stockNews)
+	{
+		dao.updateForSolr(stockNews);
+	}
+	
+	@Override
+	public int removeByIdForSolr(String id){
+		return dao.removeByIdForSolr(id);
+	}
+	/**
+	 * 插入公司新闻到mysql
+	 */
+	@Override
+	public String insertStockNews(StockNews stockNews) throws Exception{
+		return dao.insertStockNews(stockNews);
+	}
+	
+	/**
+	 * 通过链接URL查询新闻
+	 */
+	@Override
+	public StockNews queryByLink(String newsLink) {
+		return dao.queryStockNewsByLink(newsLink);
+	}
+	
+	/**
+	 * 获取最新的新闻列表
+	 * @param String
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<StockNews> listStockNews() {
+		return dao.listStockNews();
+	}
+	
+	/**
+	 * 获取更新的新闻列表
+	 * @param long
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<StockNews> refreshStockNews(long id) {
+		return dao.refreshStockNews(id);
+	}
+	
+	/**
+	 * 获取历史的新闻列表
+	 * @param long
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<StockNews> stockNewsHistoryList(long id) {
+		return dao.stockNewsHistoryList(id);
+	}
+}

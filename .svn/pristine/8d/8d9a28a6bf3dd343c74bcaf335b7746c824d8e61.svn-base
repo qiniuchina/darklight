@@ -1,0 +1,190 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<!DOCTYPE html>
+<html>
+<head>
+<title>List Stock News</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport"
+	content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="stylesheet" href="../css/reset.css" />
+<link rel="stylesheet" href="../css/pullToRefresh.css" />
+<script src="../js/jquery-1.11.3.min.js"></script>
+<script src="../js/iscroll.js"></script>
+<script src="../js/pullToRefresh.js"></script>
+<style type="text/css" media="all">
+body, html {
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	font-family: Arial, Microsoft YaHei;
+	color: #111;
+}
+
+.scroller li {
+	height: 60px;
+	border-bottom: 1px solid #eee;
+	background-color: #fff;
+	font-size: 14px;
+}
+
+.pullDownLabel img {
+	width: 13px;
+	height: 13px;
+	margin-top: -1px;
+	vertical-align: -2px;
+	margin-right: 5px;
+}
+
+#wrapper ul li img {
+	width: 60px;
+	float: left;
+	margin-left: 10px;
+}
+
+#wrapper ul li button {
+	position: absolute;
+	right: 20px;
+	margin-top: 10px;
+	background-color: #F8CD0C;
+	border: 0;
+	color: #fff;
+	font-family: Microsoft YaHei;
+	padding: 5px 14px;
+	border-radius: 3px;
+}
+</style>
+</head>
+<body>
+	<!--must content ul li,or shoupi-->
+	<div id="wrapper">
+		<ul>
+			<c:forEach items="${stockNewsList}" var="stockNews">
+			<li id = "${stockNews.id}">
+				<a href = "${stockNews.newsLink}">${stockNews.title}</a> (<fmt:formatDate value="${stockNews.pubDate}" pattern="yyyy-MM-dd hh:mm" />)<br>
+				(股票代码：${stockNews.stockCode} 利空关键词：${stockNews.keywords})
+			</li>
+			</c:forEach>
+		</ul>
+	</div>
+<script>
+		refresher.init({
+			id : "wrapper",//<------------------------------------------------------------------------------------┐
+			pullDownAction : Refresh,
+			pullUpAction : Load
+		});
+		function Refresh() {
+			setTimeout(
+					function() { // <-- Simulate network congestion, remove setTimeout from production!
+						var el, li;
+						var allLi = $("#wrapper ul").children();
+						var id = allLi[0].getAttribute("id");
+						el = document.querySelector("#wrapper ul");
+						//这里写你的刷新代码
+						document.getElementById("wrapper").querySelector(
+								".pullDownIcon").style.display = "none";
+						document.getElementById("wrapper").querySelector(
+								".pullDownLabel").innerHTML = "<img src='../css/ok.png'/>刷新成功";
+						setTimeout(
+								function() {
+									$.ajax({
+										url : "http://localhost:8080/darklight/stocknews/refresh",
+										type : "get",
+										data: { id: id },
+										datatype : "json",
+										success : function(data) {
+											var li;
+											var jsonData = eval(data);
+											var refreshNewsList = jsonData.refreshNewsList;
+											$.each(refreshNewsList, function(index, item) {
+												//循环获取数据
+												var id = refreshNewsList[index].id;
+												var newsLink = refreshNewsList[index].newsLink;
+												var title = refreshNewsList[index].title;
+												var pubDate = refreshNewsList[index].pubDate;
+												var stockCode = refreshNewsList[index].stockCode;
+												var keywords = refreshNewsList[index].keywords;
+												li = document.createElement("li");
+												li.setAttribute("id", id);
+												li.innerHTML = "<a href = "+newsLink+">" + title
+												+ "</a>"+"&nbsp(" + timeStamp2String(pubDate)
+												+")<br>" + "(股票代码：" + stockCode
+												+ "&nbsp&nbsp&nbsp" + "利空关键词：" + keywords
+												+ ")";
+												el.insertBefore(li,el.childNodes[0]);
+											});
+										}
+									});
+									wrapper.refresh();
+									document.getElementById("wrapper")
+											.querySelector(".pullDownLabel").innerHTML = "";
+								}, 1000);//模拟qq下拉刷新显示成功效果
+						/****remember to refresh after  action completed！ ---yourId.refresh(); ----| ****/
+					}, 1000);
+		}
+		function Load() {
+			var allLi = $("#wrapper ul").children();
+			var id = allLi[allLi.length-1].getAttribute("id");
+			setTimeout(
+					function() {// <-- Simulate network congestion, remove setTimeout from production!
+						$.ajax({
+							url : "http://localhost:8080/darklight/stocknews/more",
+							type : "get",
+							data: { id: id },
+							datatype : "json",
+							success : function(data) {
+								var li;
+								var jsonData = eval(data);
+								var moreNewsList = jsonData.moreNewsList;
+								$.each(moreNewsList, function(index, item) {
+									//循环获取数据
+									var id = moreNewsList[index].id;
+									var newsLink = moreNewsList[index].newsLink;
+									var title = moreNewsList[index].title;
+									var pubDate = moreNewsList[index].pubDate;
+									var stockCode = moreNewsList[index].stockCode;
+									var keywords = moreNewsList[index].keywords;
+									li = document.createElement("li");
+									li.setAttribute("id", id);
+									li.innerHTML = "<a href = "+newsLink+">" + title
+											+ "</a>"+"&nbsp(" + timeStamp2String(pubDate)
+											+")<br>" + "(股票代码：" + stockCode
+											+ "&nbsp&nbsp&nbsp" + "利空关键词：" + keywords
+											+ ")";
+									$("#wrapper ul").append(li);
+								});
+							}
+						});
+						wrapper.refresh();
+						/****remember to refresh after action completed！！！   ---id.refresh(); --- ****/
+					}, 2000);
+		}
+		function timeStamp2String(time) {
+			var datetime = new Date();
+			datetime.setTime(time);
+			var year = datetime.getFullYear();
+			var month = datetime.getMonth() + 1;
+			if (month < 10) {
+				month = "0" + month;
+			}
+			var date = datetime.getDate();
+			if (date < 10) {
+				date = "0" + date;
+			}
+			var hour = datetime.getHours();
+			if (hour < 10) {
+				hour = "0" + hour;
+			}
+			var minute = datetime.getMinutes();
+			if (minute < 10) {
+				minute = "0" + minute;
+			}
+			return year + "-" + month + "-" + date + " " + hour + ":" + minute;
+		};
+</script>
+</body>
+</html>

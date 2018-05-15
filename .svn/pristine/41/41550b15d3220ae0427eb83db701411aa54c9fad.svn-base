@@ -1,0 +1,21 @@
+package com.dxc.darklight.dao;
+
+import org.nutz.dao.Dao;
+import org.nutz.dao.impl.NutDao;
+
+import com.alibaba.druid.pool.DruidDataSource;
+import com.dxc.darklight.datasource.mysql.DataManager;
+import com.dxc.darklight.datasource.mysql.DataManagerHappy;
+
+public class BaseDao {
+	protected Dao dao;
+	protected Dao happyDao;
+	public BaseDao() {
+		DruidDataSource ds = DataManager.getDataSource();
+		dao = new NutDao(ds);
+		
+		DruidDataSource dsh = DataManagerHappy.getDataSource();
+		happyDao = new NutDao(dsh);
+	}
+		
+}

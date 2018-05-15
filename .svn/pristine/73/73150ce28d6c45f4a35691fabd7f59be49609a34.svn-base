@@ -1,0 +1,20 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<title>topbar</title>
+
+
+</head>
+<body>
+	<bar style="z-index:2;">
+	<div class="bar_menu">
+		<a  href="/darklight/topnews/list?userId=${sessionScope.user.userId}">黑天鹅新闻</a>
+		<a  href="/darklight/topnews/list?userId=${sessionScope.user.userId}">公司新闻</a>
+		<a  href="/darklight/topnews/list?userId=${sessionScope.user.userId}">大盘新闻</a>
+    </div>
+</bar>
+</body>
+
+</html>

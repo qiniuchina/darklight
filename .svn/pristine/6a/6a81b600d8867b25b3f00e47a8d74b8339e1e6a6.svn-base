@@ -1,0 +1,101 @@
+package com.dxc.darklight.control;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.json.MappingJackson2JsonView;
+
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.TopNewsStockService;
+import com.dxc.darklight.service.UserService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+import com.dxc.darklight.weixin.token.TokenWeb;
+import com.dxc.darklight.weixin.token.TokenWebService;
+
+@Controller
+@RequestMapping("/topnews")
+public class TopNewsStockController {
+	
+	@Autowired
+	TopNewsStockService topNewsStockService;
+	
+	@Autowired
+	UserService userService;
+	
+	@RequestMapping(value = "/list", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView listStockNews(String userId, HttpSession httpSession) {
+		ModelAndView mv = null;
+//		if (!CommonUtil.isEmpty(userId)) {
+//			httpSession.setAttribute("user", userService.getUserById(userId));
+//		}
+		List<TopNewsStock> topNewslist = topNewsStockService.listTopNews();
+		Map<String, Object> data = new HashMap<String, Object>();
+		data.put("topNewslist", topNewslist);
+		mv = new ModelAndView("stocknews", data);
+
+		return mv;
+	}
+	/*
+	 * 通过微信授权进入
+	 */
+	@RequestMapping(value = "/listwx", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView listStockNewsWx(String code, HttpSession httpSession) {
+		ModelAndView mv = null;
+
+		TokenWeb tokenweb = TokenWebService.getNewTokenWebObject(code);
+		String userId = tokenweb.getOpenId();
+		if(!CommonUtil.isEmpty(userId)) {
+		httpSession.setAttribute("user", userService.getUserById(userId));
+		}else{
+			return  new ModelAndView("index", null);
+		}
+		List<TopNewsStock> topNewslist = topNewsStockService.listTopNews();
+		Map<String, Object> data = new HashMap<String, Object>();
+		data.put("topNewslist", topNewslist);
+		mv = new ModelAndView("stocknews", data);
+
+		return mv;
+	}
+	
+	@RequestMapping(value = "/refresh", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView refreshStockNews(String id) throws Exception {
+		List<TopNewsStock> list = null;
+		if(CommonUtil.isEmpty(id)){
+			list = topNewsStockService.listTopNews();
+		}else{
+			Date pubDate = DateUtils.parseMinuteTime(id.split(",")[0]);
+			String newsId =  id.split(",")[1];
+			list = topNewsStockService.refreshTopNews(Long.parseLong(newsId),pubDate);
+		}
+		Map<String, Object> data = new HashMap<String, Object>();		
+		data.put("refreshNewsList", list);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+	
+	@RequestMapping(value = "/more", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView moreStockNews(String id) throws Exception {
+		List<TopNewsStock> list = null;
+		if(CommonUtil.isEmpty(id)){
+			list = topNewsStockService.listTopNews();
+		}else{
+			Date pubDate = DateUtils.parseMinuteTime(id.split(",")[0]);
+			String newsId =  id.split(",")[1];
+			list = topNewsStockService.listTopNewsHistory(Long.parseLong(newsId),pubDate);
+		}
+		Map<String, Object> data = new HashMap<String, Object>();		
+		data.put("moreNewsList", list);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+}

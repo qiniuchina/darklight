@@ -1,0 +1,173 @@
+package com.dxc.darklight.weixin;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.URL;
+import java.security.SecureRandom;
+import java.util.List;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.nutz.log.Log;
+import org.nutz.log.Logs;
+
+import com.alibaba.fastjson.JSONObject;
+import com.dxc.darklight.conf.ConfFactory;
+import com.dxc.darklight.model.WeiXinTemplateModel;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.weixin.token.Token;
+import com.dxc.darklight.weixin.token.TokenService;
+
+
+/**
+ * 微信公众平台通用接口工具类
+ * @author Administrator
+ *
+ */
+public class WeiXinUtil {
+
+	private static final Logger log = LogManager.getLogger(WeiXinUtil.class);
+	private static String TEMPLATE_URL = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=";
+
+	/**
+	 * 发起Https请求并获取结果
+	 * @param requestUrl 请求URL
+	 * @param requestMethod 请求方式(GET/POST)
+	 * @param outputStr 提交数据
+	 * @return JSONObject
+	 */
+	public static JSONObject httpRequest(String requestUrl, String requestMethod, String outputStr){
+		JSONObject json = null;
+		StringBuffer sb = new StringBuffer();
+		try{
+			//创建SSLContext对象，并使用我们指定的信任管理器初始化
+			TrustManager[] tm = {new MyX509TrustManager()};
+			SSLContext sslContext = SSLContext.getInstance("SSL", "SunJSSE");
+			sslContext.init(null, tm, new SecureRandom());
+			//从上述SSLContext对象中得到SSLSocketFactory对象
+			SSLSocketFactory ssf = sslContext.getSocketFactory();
+			URL url = new URL(requestUrl);
+			HttpsURLConnection conn =null;
+			Proxy proxy = null;
+			String proxyHost = ConfFactory.getConf().get("http.proxy.host");
+			if (CommonUtil.notEmpty(proxyHost))
+			{
+				InetSocketAddress addr = new InetSocketAddress(proxyHost,8080);  
+	            proxy = new Proxy(Proxy.Type.HTTP, addr);
+	            conn=(HttpsURLConnection)url.openConnection(proxy);
+			}else{
+				conn=(HttpsURLConnection)url.openConnection();
+			}
+			conn.setSSLSocketFactory(ssf);
+			conn.setDoOutput(true);
+			conn.setDoInput(true);
+			conn.setUseCaches(false);
+			//设置请求方式
+			conn.setRequestMethod(requestMethod);
+			if("GET".equalsIgnoreCase(requestMethod)){
+				conn.connect();
+			}
+			//当有数据提交时
+			if(CommonUtil.notEmpty(outputStr)){
+				OutputStream os = conn.getOutputStream();
+				//注意编码格式，防止中文乱码
+				os.write(outputStr.getBytes("UTF-8"));
+				os.close();
+			}
+			
+			//将返回的输入流转换为字符串
+			InputStream is = conn.getInputStream();
+			InputStreamReader read = new InputStreamReader(is, "UTF-8");
+			BufferedReader br = new BufferedReader(read);
+			String str = null;
+			while((str = br.readLine()) != null){
+				sb.append(str);
+			}
+			br.close();
+			read.close();
+			is.close();
+			is = null;
+			conn.disconnect();
+			json = JSONObject.parseObject(sb.toString());
+		}catch(Exception e){
+			log.debug("https request error !!!"+e.getMessage());
+			e.printStackTrace();
+		}
+		return json;
+	}
+	
+	/**
+	 * 发送模板消息
+	 * @param mess
+	 * @return int
+	 */
+	public static int sendWeixinMsg(List<WeiXinTemplateModel> data)
+	{
+		int rev = -1;
+		try
+		{
+			Token accessToken = null;
+			accessToken = TokenService.getTokenFromRedis();
+			if(accessToken==null)
+			{
+				log.debug("TokenStr is null!");
+				return -1;
+			}
+			log.debug("TokenStr:"+accessToken.getTokenStr());
+			for(WeiXinTemplateModel wt : data)
+			{
+				String url = TEMPLATE_URL + accessToken.getTokenStr();
+				String strJson = "{\"touser\" :\""+wt.getToUser()+"\",";
+		        strJson += "\"template_id\":\"tvRyfF1qrurMudMsEigitxG3tbgoz-1T6SY_Ev3rGbU\",";
+		        String strurl = wt.getUrl();
+				strJson += "\"url\":\""+strurl+"\",";
+		        strJson += "\"data\":{";
+		        String first= wt.getFirst();
+				strJson += "\"first\":{\"value\":\""+first+"\",\"color\":\"#173177\"},";
+		        String time= wt.getTime();
+				strJson += "\"keyword1\":{\"value\":\""+time+"\",\"color\":\"#173177\"},";
+		        String content= wt.getContent();
+				strJson += "\"keyword2\":{\"value\":\""+content+"\",\"color\":\""+wt.getColor()+"\"},";
+		        String remark= wt.getRemark();
+				strJson += "\"remark\":{\"value\":\""+remark+"\",\"color\":\"#173177\"}";
+		        strJson += "}}";
+		        log.debug("sendtemplateurl:"+url);
+		        log.debug("strJson:"+strJson);
+		        JSONObject ret = httpRequest(url, "POST", strJson);
+		        log.debug("result="+ret);
+			}
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+		
+		return rev;
+	}
+	
+	/**
+	 * main方法，测试
+	 */
+	public static void main(String[] args)
+	{
+		/*Token accessToken = null;
+		accessToken = getAccessToken(App.APP_ID, App.APP_SECRET);*/
+		//sendWeixinMsg(null);
+		String token = TokenService.getTokenFromAli();
+		System.out.println(token);
+	}
+	
+	
+	
+}

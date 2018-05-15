@@ -1,0 +1,8 @@
+30 17 * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar DealMountModel >>/opt/darklight/conf/DealMountModel.log
+*/5 09-15 * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar ExceptionNoticeMsg >>/opt/darklight/conf/ExceptionNoticeMsg.log
+10 15 * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar PriceMsgAfterStockClosed >>/opt/darklight/conf/PriceMsgAfterStockClosed.log
+*/10 * * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar FinanceNewsSpider >>/opt/darklight/conf/FinanceNewsSpider.log
+01 20 * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar IndividualStockNewsSpider >>/opt/darklight/conf/IndividualStockNewsSpider.log
+01 5 * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar AllStocksInfoSpider >>/opt/darklight/conf/AllStocksInfoSpider.log
+*/20 * * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar BlackStockServiceImpl >>/opt/darklight/conf/BlackStockService.log
+*/50 */1 * * * /opt/software/java/jdk1.8.0_121/bin/java -jar /opt/darklight/conf/darklight.jar CreateNewToken >>/opt/darklight/conf/CreateNewToken.log

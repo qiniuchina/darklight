@@ -1,0 +1,11 @@
+package com.dxc.darklight.service;
+
+import java.util.List;
+
+import com.dxc.darklight.model.StockModelMount;
+
+public interface StockModelMountService {
+
+	//web
+	List<StockModelMount> getStockModelMountList(String userId);
+}

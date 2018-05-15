@@ -1,0 +1,70 @@
+package com.dxc.darklight.spider;
+
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+
+public class StockDealMountSpider {
+
+	/**
+	 * 计算股票的交易量权值
+	 */
+	public static void work() {
+		try {
+			StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+			List<StockNews> stocknews = stockInfoService.getAllStockNews();
+			if(stocknews==null || stocknews.size()<=0)
+			{
+				return;
+			}
+			String begin = null, end = null;
+			SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd");
+			Calendar cal = Calendar.getInstance();
+			end = sf.format(cal.getTime());
+			cal.add(Calendar.DATE, -150);
+			begin = sf.format(cal.getTime());
+			StockModelMount sm = null;
+			for(int i=0; i<stocknews.size(); i++)
+			{
+				StockNews sn = stocknews.get(i);
+				String stockCd = sn.getStockCode();
+				if(sn!=null && stockCd!=null && stockCd.length()==8 &&(stockCd.startsWith("sh") || stockCd.startsWith("sz")))
+				{
+					stockInfoService.clearDataSet();
+					String stockId = stockCd.substring(2);
+					stockInfoService.processGetStocksInfo(stockId, begin, end);
+					double avg = stockInfoService.allSpotCheck(20, 10);
+					double rev = -1;
+					if(stockInfoService.checkMonutAndPrice(avg*0.618, 1.5, 5))
+					{
+						rev = stockInfoService.computeLevel(avg*0.618, 5);
+					}					
+					sm = new StockModelMount();
+					sm.setStockCode(stockCd);					
+					SimpleDateFormat sfDate = new SimpleDateFormat("yyyy-MM-dd");
+					Calendar calDate = Calendar.getInstance();
+					String stockDate = sfDate.format(calDate.getTime());
+					sm.setStockDate(stockDate);					
+					sm.setAvgMount(avg*0.618);
+					sm.setAvgWeight(rev);
+					sm.setCreateDtm(new Timestamp(System.currentTimeMillis()));
+					stockInfoService.saveAndUpateMount(sm);
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public static void main(String[] args)
+	{
+		work();
+	}
+
+}

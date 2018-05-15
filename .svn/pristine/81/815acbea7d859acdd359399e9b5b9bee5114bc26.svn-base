@@ -1,0 +1,16 @@
+package com.dxc.darklight.service;
+
+import java.util.List;
+
+import com.dxc.darklight.model.BlackStock;
+
+public interface BlackStockService {
+	
+	public String insertBlackStock(BlackStock blackStock);
+
+	public boolean isValidNews(String id);
+
+	public void work();
+
+	public List<BlackStock> getAllBlackStocks();
+}

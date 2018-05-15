@@ -1,0 +1,362 @@
+package com.dxc.darklight.service.impl;
+
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.BlackStockDao;
+import com.dxc.darklight.dao.StockModelMountDao;
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StocksInfoEntity;
+import com.dxc.darklight.service.DealMountModelService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+
+@Service
+public class DealMountModelServiceImpl implements DealMountModelService {
+	
+	/*没有计算结果阶段*/
+	private static int FAST_ERROR_PHASE = -1;
+	private static String FAST_ERROR_PHASE_STR = "非黑天鹅股票";
+	/*快速下跌阶段*/
+	private static int FAST_DROP_PHASE = 0;
+	private static String FAST_DROP_PHASE_STR = "快速下跌阶段";
+	
+	/*震荡阶段*/
+	private static int FAST_SHOCK_PHASE = 1;
+	private static String FAST_SHOCK_PHASE_STR = "震荡阶段";
+	
+	/*平稳阶段*/
+	private static int FAST_STABLE_PHASE = 2;
+	private static String FAST_STABLE_PHASE_STR = "平稳阶段";
+	@Autowired
+	StockModelMountDao stockModelMountDao;
+	@Autowired
+	BlackStockDao blackStockDao;
+	@Autowired
+	StockModelMountDao mountDao;
+	//web
+	@Override
+	public List<StockModelMount> getStockModelMountList(String userId){
+		List<StockModelMount> list= stockModelMountDao.getStockModelMountList(userId);
+		if(list!=null){
+			for(StockModelMount mount:list){
+				int phase=mount.getFlagPhase();
+				if(FAST_DROP_PHASE==phase){
+					mount.setPricePhase(FAST_DROP_PHASE_STR);
+				}else if(FAST_SHOCK_PHASE==phase){
+					mount.setPricePhase(FAST_SHOCK_PHASE_STR);
+				}else if(FAST_STABLE_PHASE==phase){
+					mount.setPricePhase(FAST_STABLE_PHASE_STR);
+				}else{
+					mount.setPricePhase(FAST_ERROR_PHASE_STR);
+				}
+				StockCurrentPrice stockCurr=CommonUtil.getCurrentPriceByStockCode(CommonUtil.formatStockCode(mount.getStockCode()));
+				if(stockCurr!=null){
+					mount.setCurrPrice(String.valueOf(stockCurr.getStockPrice()));
+					mount.setCurrUpDown(String.valueOf(stockCurr.getStockUpdownPercent())+"%");
+					mount.setStockDate(DateUtils.formatCommonFormat(stockCurr.getCreateDtm()));
+				}
+			}
+		}
+		return list;
+	}
+	/*
+	 * 个股的模型数据和基本数据
+	 * @see com.dxc.darklight.service.StockModelMountService#getStockModelMountList(java.lang.String)
+	 */
+	@Override
+	public StockModelMount getStockModelResult(String stockCode){
+		StockModelMount stockModel= stockModelMountDao.getStockModelResult(stockCode);
+		if(stockModel!=null){
+				int phase=stockModel.getFlagPhase();
+				if(FAST_DROP_PHASE==phase){
+					stockModel.setPricePhase(FAST_DROP_PHASE_STR);
+				}else if(FAST_SHOCK_PHASE==phase){
+					stockModel.setPricePhase(FAST_SHOCK_PHASE_STR);
+				}else if(FAST_STABLE_PHASE==phase){
+					stockModel.setPricePhase(FAST_STABLE_PHASE_STR);
+				}else{
+					stockModel.setPricePhase(FAST_ERROR_PHASE_STR);
+				}
+				StockCurrentPrice stockCurr=CommonUtil.getCurrentPriceByStockCode(CommonUtil.formatStockCode(stockModel.getStockCode()));
+				if(stockCurr!=null){
+					stockModel.setCurrPrice(String.valueOf(stockCurr.getStockPrice()));
+					stockModel.setCurrUpDown(String.valueOf(stockCurr.getStockUpdownPercent())+"%");
+					stockModel.setStockDate(DateUtils.formatCommonFormat(stockCurr.getCreateDtm()));
+				}
+		}
+		return stockModel;
+	}
+	
+	private Map<String, Double> getMountAndPriceMedian(List<StocksInfoEntity> dealInfo, int loop)
+			throws Exception {
+		if(loop % 2 != 1)
+		{
+			System.out.println("请传入奇数个数!");
+			return null;
+		}
+		Map<String, Double> temp = null;
+		List<Double> mountArr = new ArrayList<Double>();
+		List<Double> priceArr = new ArrayList<Double>();
+		for(int i=0; i<loop; i++)
+		{
+			temp = allSpotCheck(dealInfo, 20, 10);
+			if(temp == null)
+			{
+				return null;
+			}
+			double mount = temp.get("totalmount");
+			double price = temp.get("totalprice");
+			mountArr.add(mount);
+			priceArr.add(price);
+		}
+		
+		for(int i=0; i<loop; i++)
+		{
+			for(int j=i; j<loop; j++)
+			{
+				if(mountArr.get(i)<mountArr.get(j))
+				{
+					double tempDouble = mountArr.get(i);
+					mountArr.set(i, mountArr.get(j));
+					mountArr.set(j, tempDouble);
+				}
+				
+				if(priceArr.get(i)<priceArr.get(j))
+				{
+					double tempDouble = priceArr.get(i);
+					priceArr.set(i, priceArr.get(j));
+					priceArr.set(j, tempDouble);
+				}
+			}
+		}
+		
+		System.out.println("mountArr:"+mountArr);
+		System.out.println("priceArr:"+priceArr);
+		
+		Map<String, Double> revMap = new HashMap<String, Double>();
+		revMap.put("totalmount", mountArr.get(loop/2));
+		revMap.put("totalprice", priceArr.get(loop/2));
+		
+		return revMap;
+	}
+	
+	private Map<String, Double> allSpotCheck(List<StocksInfoEntity> dealInfo, int count, int length) throws Exception
+	{
+		if(dealInfo==null || dealInfo.size()-length<=0)
+		{
+			System.out.println("抽样的样本数不够，请获取更多的样本数!");
+			return null;
+		}
+		Random r = new Random();
+		double totalMount = 0, totalPrice = 0;
+		Map<String, Double> temp = null;
+		for(int i=1; i<=count; i++)
+		{
+			int start = r.nextInt(dealInfo.size()-length+1);
+			temp = spotCheck(dealInfo, start, length);
+			totalMount += temp.get("totalmount");
+			totalPrice += temp.get("totalprice");
+		}
+		double revMount = 0, revPrice = 0;;
+		BigDecimal b = new BigDecimal(totalMount/count);  
+		revMount = b.setScale(4,BigDecimal.ROUND_HALF_UP).doubleValue(); 
+		
+		b = new BigDecimal(totalPrice/count);  
+		revPrice = b.setScale(4,BigDecimal.ROUND_HALF_UP).doubleValue(); 
+		
+		temp.put("totalmount", revMount);
+		temp.put("totalprice", revPrice);
+		return temp;
+	}
+	
+	private Map<String, Double> spotCheck(List<StocksInfoEntity> dealInfo, int start, int length)
+	{
+		Map<String, Double> rev = new HashMap<String, Double>();
+		double totalMount = 0, totalPrice = 0;
+		StocksInfoEntity se = null;
+		for(int i=0; i<length; i++)
+		{
+			se = dealInfo.get(start+i);
+			totalMount += se.getDealMount();
+			totalPrice += Math.abs(se.getUpDownMoneyPercent());
+		}
+		rev.put("totalmount", totalMount/length);
+		rev.put("totalprice", totalPrice/length);
+		return rev;
+	}
+	
+	private double computeLevel(List<StocksInfoEntity> dealInfo, double avg, int days)
+	{
+		double rev = -1;
+		if(dealInfo==null || dealInfo.size()<=0)
+		{
+			return rev;
+		}
+		if(avg < 0)
+		{
+			return rev;
+		}
+		if(dealInfo.size()<=days)
+		{
+			days=dealInfo.size();
+		}
+		
+		StocksInfoEntity se = null;
+		double percent = 0;
+		for(int i=0; i<days; i++)
+		{
+			se = dealInfo.get(i);
+			double mount = se.getDealMount();
+			percent += (mount/avg);
+		}
+		BigDecimal b = new BigDecimal(percent/days);  
+		rev = b.setScale(4,BigDecimal.ROUND_HALF_UP).doubleValue(); 
+		return rev;
+	}
+	
+	private boolean checkMonutAndPrice(List<StocksInfoEntity> dealInfo, double avgMonut, double avgPrice, int days){
+		if(avgMonut < 0)
+		{
+			return false;
+		}
+		if(dealInfo == null || dealInfo.size()<=0)
+		{
+			return false;
+		}
+		if(days>=dealInfo.size())
+		{
+			days = dealInfo.size();
+		}
+		double moreAve = avgMonut + avgMonut * 0.382;
+		double morePrice = avgPrice + avgPrice * 0.382;
+		StocksInfoEntity se = null;
+		for(int i=0; i<days; i++)
+		{
+			se = dealInfo.get(i);
+			double monut = se.getDealMount();
+			double price = se.getUpDownMoneyPercent();
+			price = Math.abs(price);
+			if(i < 3)
+			{
+				if(monut>avgMonut || price>avgPrice)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if(monut>moreAve || price>morePrice)
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
+	private double getDropPercentByDays(List<StocksInfoEntity> dealInfo, int day) {
+		if(dealInfo == null || dealInfo.size() < day)
+		{
+			return -1;
+		}
+		double rev = -1;
+		StocksInfoEntity se = null;
+		for(int i=0; i<day; i++)
+		{
+			se = dealInfo.get(i);
+			rev += se.getUpDownMoneyPercent();
+		}
+		return rev;
+	}
+	
+	private void saveAndUpateMount(StockModelMount stockModelMount){
+		mountDao.saveAndUpateMount(stockModelMount);
+	}
+	
+	public Boolean stockPriceWave(List<StocksInfoEntity> dealInfo){
+		Double MaxDownCount=-20d;
+		Double downCount=0d;
+		int count=0;
+		for(StocksInfoEntity stock:dealInfo){			
+			count++;
+			downCount=downCount + stock.getUpDownMoneyPercent();
+			
+			if(downCount<=MaxDownCount){
+				return true;
+			}
+			if(count>=30&&downCount>MaxDownCount){
+				return false;
+			}
+		}
+		return false;
+	}
+	@Override
+	public int processModel(List<StocksInfoEntity> dealInfo, String stockCd) throws Exception {
+		
+		Map<String, Double> temp = getMountAndPriceMedian(dealInfo, 11);
+		double avgMount = 0;
+		double avgPrice = 0;
+		int flagPhase = FAST_ERROR_PHASE;
+		double rev = -1;
+		if(temp!=null)
+		{
+			avgMount = temp.get("totalmount");
+			avgPrice = temp.get("totalprice");
+			rev = computeLevel(dealInfo, avgMount*0.618, 5);
+			
+			//达到了股票的平稳阶段
+			if(checkMonutAndPrice(dealInfo, avgMount*0.618, avgPrice * 0.618, 5))
+			{
+				flagPhase = FAST_STABLE_PHASE;
+			}
+			else
+			{
+				//累加最近5天的涨跌幅，如果涨跌幅达到了-10%则判断为极速下降的阶段
+				double revFlage = getDropPercentByDays(dealInfo, 5);
+				if(revFlage == -1)
+				{
+					flagPhase = FAST_ERROR_PHASE;
+					rev = -1;
+				}
+				else if(revFlage <= -10)
+				{
+					flagPhase = FAST_DROP_PHASE;
+				}
+				else
+				{
+					flagPhase = FAST_SHOCK_PHASE;
+				}
+			}
+		}
+		StockModelMount sm = new StockModelMount();
+		sm.setStockCode(stockCd);	
+		sm.setAvgPrice(avgPrice * 0.618);
+		SimpleDateFormat sfDate = new SimpleDateFormat("yyyy-MM-dd");
+		Calendar calDate = Calendar.getInstance();
+		String stockDate = sfDate.format(calDate.getTime());
+		sm.setStockDate(stockDate);
+		sm.setFlagPhase(flagPhase);
+		sm.setAvgMount(avgMount*0.618);
+		sm.setAvgWeight(rev);
+		sm.setCreateDtm(new Timestamp(System.currentTimeMillis()));
+		saveAndUpateMount(sm);
+		return flagPhase;
+	}
+	
+	public boolean isHoliday(Date date){
+		return stockModelMountDao.isHoliday(date);
+	}
+}

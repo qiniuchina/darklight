@@ -1,0 +1,130 @@
+package com.dxc.darklight.spider;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import org.jsoup.nodes.Document;
+
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.UserStockNewsService;
+
+public class StockCurrentPriceSpider {
+
+	/**
+	 * 计算股票的交易量权值
+	 */
+	public static void work() {
+		
+		//当前时间必须在上午9点半到下午3点，否则不执行此方法
+		Calendar cal = Calendar.getInstance();
+		int hour = cal.get(Calendar.HOUR_OF_DAY);
+		int minute = cal.get(Calendar.MINUTE);
+		double hTime = hour + minute/60f;
+		
+		if(hTime<9.5 || hTime>15 || cal.get(Calendar.DAY_OF_WEEK)==Calendar.SATURDAY||cal.get(Calendar.DAY_OF_WEEK)==Calendar.SUNDAY)
+		{
+			System.out.println("此时间段不是交易时间!");
+			return;
+		}
+		UserStockNewsService userStockNewsService = ServiceFactory.createUserStockNewsService();
+		userStockNewsService.deletePreviousData(-12);
+		List<String> usrStocks = userStockNewsService.getAllUserStockCodes();
+		String url = "http://hq.sinajs.cn/list=";
+		if(usrStocks !=null && usrStocks.size() > 0)
+		{
+			String para = "";
+			for(String usrStock : usrStocks)
+			{
+				if(usrStock != null)
+				{
+					para += ("s_"+usrStock+",");
+				}
+			}
+			url = url + para;
+			Document doc = null;
+			try {
+				doc = JsoupParse.getDocument(url, "gb2312");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			String data = doc.body().html();
+			List<StockCurrentPrice> stockCurrentPrice= new ArrayList<StockCurrentPrice>();
+			if(data != null)
+			{
+				String [] arr = data.split(";");
+				if(arr!=null && arr.length>0)
+				{
+					for(int i=0; i<arr.length; i++)
+					{
+						try
+						{
+							String str = arr[i];
+							System.out.println(str);
+							//解析每一个字符串，得到股票代码和名称等信息
+							if(str!=null && !"".equals(str))
+							{
+								//如果是非法的返回就略过
+								String[] twoPart = str.split("=");
+								if(twoPart==null || twoPart.length!=2 || twoPart[1].length()<5)
+								{
+									continue;
+								}
+								
+								//解析股票代码
+								String partOne = twoPart[0];
+								String stockCd = partOne.substring(partOne.indexOf("_str_s_")+7);
+								
+								//解析当前价格以及涨跌幅，交易量等信息
+								String partTwo = twoPart[1];
+								partTwo = partTwo.substring(1, partTwo.length()-1);
+								String[] partTwoArr = partTwo.split(",");
+								String stockName = partTwoArr[0];
+								double currentPrice = Double.parseDouble(partTwoArr[1]);
+								double upDownPrice = Double.parseDouble(partTwoArr[2]);
+								double upDownPencent = Double.parseDouble(partTwoArr[3]);
+								int dealMount = Integer.parseInt(partTwoArr[4]);
+								
+								if(dealMount == 0)
+								{
+									continue;
+								}
+								
+								//生成当前价格对象
+								StockCurrentPrice sc = new StockCurrentPrice();
+								sc.setStockCode(stockCd);
+								sc.setStockName(stockName);
+								sc.setStockPrice(currentPrice);
+								sc.setStockUpdownPrice(upDownPrice);
+								sc.setStockUpdownPercent(upDownPencent);
+								sc.setStockDealMount(dealMount);
+								Timestamp ts = new Timestamp(System.currentTimeMillis());
+								sc.setCreateDtm(ts);
+								stockCurrentPrice.add(sc);
+								
+							}
+						}catch(Exception e)
+						{
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+			
+			//把当前价格的数据存入数据库
+			for(StockCurrentPrice sc : stockCurrentPrice)
+			{
+				userStockNewsService.saveUserStockCodes(sc);
+			}
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		work();
+	}
+
+}

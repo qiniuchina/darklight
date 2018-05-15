@@ -1,0 +1,8 @@
+package com.dxc.darklight.service;
+
+import com.dxc.darklight.model.TopNewsStock;
+
+public interface TopNewsStockService {
+	public void insertTopNewsStock(TopNewsStock topNewsstock);
+	public TopNewsStock queryTopNewsByLink(String newsLink);
+}

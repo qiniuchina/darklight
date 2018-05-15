@@ -1,0 +1,16 @@
+package com.dxc.darklight.spider;
+
+import com.dxc.darklight.conf.ConfFactory;
+
+public class FinanceNewsSpider {
+	private static String NEWS_BEGIN_URL = null;
+	static
+	{
+		NEWS_BEGIN_URL = ConfFactory.getConf().get("financeNewsEntry","");
+	}
+	
+	public static void work()
+	{
+		
+	}
+}

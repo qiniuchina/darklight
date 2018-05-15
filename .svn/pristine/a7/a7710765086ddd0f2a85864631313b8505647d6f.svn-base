@@ -1,0 +1,23 @@
+package com.dxc.darklight.service;
+
+import java.util.Date;
+import java.util.List;
+
+import com.dxc.darklight.model.TopNewsStock;
+
+public interface TopNewsStockService {
+	//插入一条TopNews
+	public void insertTopNewsStock(TopNewsStock topNewsstock);
+	//根据URL查询TopNews
+	public TopNewsStock queryTopNewsByLink(String newsLink);
+	//查询所有的TopNews
+	public List<TopNewsStock> getAllTopNews();
+	//根据ID更新TopNews
+	public void updateNewsById(String newsId, int flag);
+	//获取最新的新闻列表
+	public List<TopNewsStock> listTopNews();
+	//获取更新的新闻列表
+	public List<TopNewsStock> refreshTopNews(Date pubDate);
+	//获取历史的新闻列表
+	public List<TopNewsStock> listTopNewsHistory(Date pubDate);
+}

@@ -1,0 +1,95 @@
+package com.dxc.darklight.service;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.dxc.darklight.service.impl.BlackStockServiceImpl;
+import com.dxc.darklight.spider.AllStocksInfoSpider;
+import com.dxc.darklight.spider.CompanyNewsSpider;
+import com.dxc.darklight.spider.DealMountModel;
+import com.dxc.darklight.spider.ExceptionNoticeMsg;
+import com.dxc.darklight.spider.IndividualStockNewsSpider;
+import com.dxc.darklight.spider.PriceMsgAfterStockClosed;
+import com.dxc.darklight.spider.TopNewsSpider;
+import com.dxc.darklight.weixin.token.TokenService;
+
+public class ServiceFactory {
+	private static final Logger log = LogManager.getLogger(ServiceFactory.class);
+
+	private static ApplicationContext appContext = new ClassPathXmlApplicationContext("spring-servlet.xml");
+
+	public static StockInfoService createStockInfoService() {
+		return appContext.getBean(StockInfoService.class);
+	}
+
+	public static StockNewsService createStockNewsService() {
+		return appContext.getBean(StockNewsService.class);
+	}
+
+	public static DealMountModelService createDealMountModelService() {
+		return appContext.getBean(DealMountModelService.class);
+	}
+
+	public static DealMountModelService createStockModelMountService() {
+		return appContext.getBean(DealMountModelService.class);
+	}
+
+	public static IndividualStockNewsService createIndiStockNewsService() {
+		return appContext.getBean(IndividualStockNewsService.class);
+	}
+
+	public static DealMountModelService createUserStockModelService() {
+		return appContext.getBean(DealMountModelService.class);
+	}
+
+	public static BlackStockService createBlackStockService() {
+		return appContext.getBean(BlackStockService.class);
+	}
+
+	public static UserStockService createUserStockService() {
+		return appContext.getBean(UserStockService.class);
+	}
+
+	public static void main(String[] args) {
+		String function = args[0];
+		log.info("Function=" + function);
+		if ("DealMountModel".equals(function)) {
+			// 对股票池中的股票进行计算
+			// 每天17:30执行一次
+			DealMountModel.work();
+		} else if ("ExceptionNoticeMsg".equals(function)) {
+			// 预警通知
+			// 当前时间必须在上午9点半到下午3点，否则不执行此方法
+			// 每天上午9点半到下午3点，每15分钟执行一次  */5 09-15
+			ExceptionNoticeMsg.work();
+		} else if ("PriceMsgAfterStockClosed".equals(function)) {
+			// 用户关注股票价格消息推送
+			// 每天15:10执行
+			PriceMsgAfterStockClosed.work();
+		} else if ("TopNewsSpider".equals(function)) {
+			// 每10分钟一次
+			TopNewsSpider.work();
+		} else if ("CompanyNewsSpider".equals(function)) {
+			// 每15分钟一次
+			CompanyNewsSpider.work();
+		} else if ("IndividualStockNewsSpider".equals(function)) {
+			// 个股新闻
+			// 每天20:01执行
+			IndividualStockNewsSpider.work();
+		} else if ("AllStocksInfoSpider".equals(function)) {
+			// 获取A股全部的股票信息，每天凌晨5点跑一次
+			AllStocksInfoSpider.work();
+		} else if ("BlackStockServiceImpl".equals(function)) {
+			// 对每条新闻的处理
+			// 每20分钟执行一次
+			BlackStockServiceImpl.work();
+		}else if ("CreateNewToken".equals(function)) {
+			// 对每条新闻的处理
+			// 每2小时执行一次
+			TokenService.newTokenForRedis();
+		}
+
+	}
+}

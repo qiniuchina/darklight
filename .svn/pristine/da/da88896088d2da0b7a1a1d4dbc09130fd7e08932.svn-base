@@ -1,0 +1,14 @@
+package com.dxc.darklight.service;
+
+import java.util.List;
+
+import com.dxc.darklight.model.IndustryInfo;
+import com.dxc.darklight.model.IndustryStocks;
+
+
+public interface IndustryInfoService {
+	
+	public int insertOrUpdateIndustryInfo(IndustryInfo industryInfo) throws Exception;
+	public void insertOrUpdateIndustryStocks(IndustryStocks industryStocks) throws Exception;
+	public List<IndustryStocks> getAllIndustryStocks(); //获取所有股票基础信息
+}

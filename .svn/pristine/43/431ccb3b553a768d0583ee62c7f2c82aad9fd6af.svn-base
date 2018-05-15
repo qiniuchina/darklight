@@ -1,0 +1,24 @@
+package com.dxc.darklight.service;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.dxc.darklight.model.StockNews;
+
+public class ServiceFactory {
+	
+	private static ApplicationContext appContext = new ClassPathXmlApplicationContext("spring-servlet.xml");
+	
+	public static StockNewsService createStockNewsService(){
+		return appContext.getBean(StockNewsService.class);
+	}
+	
+	
+	public static void main(String[] args) {
+		String function = args[0];
+		if("SpriderNews".equals(function)){
+			//SpiderNews.work();
+		}
+		
+	}
+}

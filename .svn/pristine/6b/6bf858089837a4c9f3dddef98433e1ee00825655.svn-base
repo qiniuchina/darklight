@@ -1,0 +1,57 @@
+package com.dxc.darklight.model;
+
+import java.sql.Timestamp;
+
+import org.nutz.dao.entity.annotation.Column;
+import org.nutz.dao.entity.annotation.Table;
+
+
+/**
+ * 行业信息
+ * 
+ */
+@Table("stock_model_mount")
+public class StockModelMount{
+	@Column("stock_code")
+	private String stockCode;
+	@Column("stock_date")
+	private String stockDate;
+	@Column("avg_mount")
+	private double avgMount;
+	@Column("avg_weight")
+	private double avgWeight;
+	@Column("create_dtm")
+	private Timestamp createDtm;
+	public String getStockCode() {
+		return stockCode;
+	}
+	public void setStockCode(String stockCode) {
+		this.stockCode = stockCode;
+	}
+	public String getStockDate() {
+		return stockDate;
+	}
+	public void setStockDate(String stockDate) {
+		this.stockDate = stockDate;
+	}
+	public double getAvgMount() {
+		return avgMount;
+	}
+	public void setAvgMount(double avgMount) {
+		this.avgMount = avgMount;
+	}
+	public double getAvgWeight() {
+		return avgWeight;
+	}
+	public void setAvgWeight(double avgWeight) {
+		this.avgWeight = avgWeight;
+	}
+	public Timestamp getCreateDtm() {
+		return createDtm;
+	}
+	public void setCreateDtm(Timestamp createDtm) {
+		this.createDtm = createDtm;
+	}
+	
+	
+}

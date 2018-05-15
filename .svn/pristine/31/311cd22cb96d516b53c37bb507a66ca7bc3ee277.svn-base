@@ -1,0 +1,306 @@
+package com.dxc.darklight.dao;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.UpdateResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.nutz.dao.Cnd;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.entity.Record;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.datasource.solr.SolrFactory;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.model.User;
+import com.dxc.darklight.util.IdGeneratorUtil;
+
+@Repository
+public class StockNewsDao extends BaseDao {
+
+	private static final Logger log = LogManager.getLogger(StockNewsDao.class);
+
+	
+
+	public List<StockNews> queryByIdsForSolr(Collection<String> ids) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			SolrDocumentList solrDocumentList = client.getById(ids);
+			return parseSolrDocumentList(solrDocumentList);
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return new ArrayList<StockNews>();
+	}
+
+	public StockNews queryByIdForSolr(String id) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			SolrDocument solrDocument = client.getById(id);
+			return parseSolrDocument(solrDocument);
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return null;
+	}
+	
+	private List<StockNews> parseQueryResponse(QueryResponse qr){
+		List<StockNews> objectArray = new ArrayList<StockNews>();
+		if(qr != null && qr.getResults() != null && !qr.getResults().isEmpty()){
+			SolrDocumentList solrDocumentList = qr.getResults();
+			for (SolrDocument solrDocument : solrDocumentList) {
+				StockNews parseSolrDocument = parseSolrDocument(solrDocument);
+				objectArray.add(parseSolrDocument);
+			}
+		}
+		return objectArray;
+	}
+	
+	private List<StockNews> parseSolrDocumentList(SolrDocumentList solrDocumentList){
+		List<StockNews> objectArray = new ArrayList<StockNews>();
+		if(solrDocumentList != null && !solrDocumentList.isEmpty()){
+			for (SolrDocument solrDocument : solrDocumentList) {
+				StockNews parseSolrDocument = parseSolrDocument(solrDocument);
+				objectArray.add(parseSolrDocument);
+			}
+		}
+		return objectArray;
+	}
+	
+	private StockNews parseSolrDocument(SolrDocument solrDocument){
+		StockNews stockNews = new StockNews();
+		stockNews.readFromSolrDocument(solrDocument);
+		return stockNews;
+	}
+
+
+
+
+
+	public void updateForSolr(StockNews stockNews) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			if (stockNews != null) {
+				client.deleteById(stockNews.getId());
+				client.add(stockNews.toSolrInputDocument());
+			}
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				client.commit();
+			} catch (SolrServerException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				if (client != null) {
+					try {
+						client.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+
+	public int removeByIdForSolr(String id) {
+		SolrClient client = SolrFactory.getClient();
+		try {
+			UpdateResponse deleteById = client.deleteById(id);
+			client.commit();
+			int status = deleteById.getStatus();
+			return status;
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * 插入mysql
+	 * @param stockNews
+	 * @return
+	 * @throws Exception
+	 */
+	public String insertStockNews(StockNews stockNews) throws Exception{
+		stockNews.setId(IdGeneratorUtil.getId());
+		dao.insert(stockNews);
+		return "success";
+	}
+	
+	/**
+	 * 通过新闻链接URL查找新闻
+	 * @param String
+	 * @return StockNews
+	 */
+	public StockNews queryStockNewsByLink(String newsLink){	
+		List<StockNews> stockNews = dao.query(StockNews.class, Cnd.where("news_link", "=", newsLink));
+		StockNews sn = null;
+		if(stockNews!=null && stockNews.size()>0){
+			sn = stockNews.get(0);
+		}
+		return sn;
+	}
+	
+	/**
+	 * 获取最新的新闻列表
+	 * @param String
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> listStockNews(){
+		Sql sql = Sqls.queryEntity("select st.*,us.user_id from stock_news st"
+				+ " left join user_stock_news us on st.id = us.news_id "
+				+ "where st.stock_code like 'sh%' or st.stock_code like 'sz%' "
+				+ " order by st.pub_date desc limit 10 ");
+//		sql.setEntity(dao.getEntity(StockNews.class));
+//		dao.execute(sql);
+//		return sql.getList(StockNews.class);
+		List<StockNews> newsList=new ArrayList<StockNews>();
+		sql.setEntity(dao.getEntity(Record.class));
+		dao.execute(sql);
+		List<Record> ls=sql.getList(Record.class);
+		for(Record re:ls){
+			StockNews news=re.toEntity(dao.getEntity(StockNews.class));
+			String userId=re.getString("user_id");
+			news.setUserId(userId);
+			newsList.add(news);
+		}
+		return newsList;
+	}
+	
+	/**
+	 * 获取更新的新闻列表
+	 * @param long,Date
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> refreshStockNews(long id,Date pubDate){
+		Sql sql = Sqls.queryEntity(" select * from stock_news "
+				+ " where convert(id,SIGNED) > @id and pub_date >= @pub_date"
+				+ " and (stock_code like 'sh%' or stock_code like 'sz%') "
+				+ " order by pub_date asc ");
+		sql.setEntity(dao.getEntity(StockNews.class));
+		sql.params().set("id", id);
+		sql.params().set("pub_date", pubDate);
+		dao.execute(sql);
+		return sql.getList(StockNews.class);
+	}
+	
+	/**
+	 * 获取历史的新闻列表
+	 * @param long,Date
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> stockNewsHistoryList(long id,Date pubDate){
+		Sql sql = Sqls.queryEntity(" select * from stock_news "
+				+ " where convert(id,SIGNED) < @id and pub_date <= @pub_date"
+				+ " and (stock_code like 'sh%' or stock_code like 'sz%') "
+				+ " order by pub_date "
+				+ " desc limit 10 ");
+		sql.setEntity(dao.getEntity(StockNews.class));
+		sql.params().set("id", id);
+		sql.params().set("pub_date", pubDate);
+		dao.execute(sql);
+		return sql.getList(StockNews.class);
+	}
+	
+	/**
+	 * 更新新闻
+	 * @param String
+	 */
+	public void updateNewsFlagById(String id){
+		Sql sql = Sqls.create("update stock_news set remove_flag = 1" 
+				+ " where id = @id");
+		sql.params().set("id", id);
+		dao.execute(sql);
+	}
+	
+	/**
+	 * Userid查询User
+	 * @param String
+	 * @return User
+	 */
+	public User getUserById(String userId){
+		Sql sql = Sqls.queryEntity(" select * from user where user_id = @userId");
+		sql.setEntity(dao.getEntity(User.class));
+		sql.params().set("userId", userId);
+		dao.execute(sql);
+		return sql.getList(User.class).get(0);
+	}
+	
+	/**
+	 * 插入数据到user_stock_news
+	 * @param String
+	 * @param String
+	 * @param String
+	 */
+	public void insertUserStockNews(String userId, String newsId, String stockCode){
+		Sql sql = Sqls.create("insert into user_stock_news "
+				+ "(user_id,news_id,stock_code) values (@userId,@newsId,@stockCode)");
+		sql.params().set("userId", userId);
+		sql.params().set("newsId", newsId);
+		sql.params().set("stockCode", stockCode);
+		dao.execute(sql);
+	}
+	
+	/**
+	 * 删除一条user_stock_news数据
+	 * @param String
+	 * @param String
+	 */
+	public void deleteUserStockNewsByNewsId(String newsId, String userId){
+		Sql sql = Sqls.create("delete from user_stock_news "
+				+ "where news_id = @newsId and user_id = @userId");
+		sql.params().set("newsId", newsId);
+		sql.params().set("userId", userId);
+		dao.execute(sql);
+	}
+	
+	public List<StockNews> getAllStockNews()
+	{
+		return dao.query(StockNews.class, null);
+	}
+}

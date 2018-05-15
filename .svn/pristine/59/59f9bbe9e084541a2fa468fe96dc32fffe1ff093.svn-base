@@ -1,0 +1,191 @@
+package com.dxc.darklight.spider;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jsoup.nodes.Document;
+
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.IndustryStocks;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.IndustryInfoService;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.util.BadNewsFilterUtil;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+
+/**
+ * @ClassName: FinanceNewsSpider
+ * @Description: Finace Related News
+ * @author: Wei Wei
+ * @date: Apr 28, 2017 4:04:35 PM
+ */
+public class FinanceNewsSpider implements Runnable {
+	private static final Logger log = LogManager
+			.getLogger(FinanceNewsSpider.class);
+	private static List<String> topNewsURLs = null;
+	private List<IndustryStocks> industryStocks;
+	static {
+		String today = DateUtils.getYYYYMMdd(new Date());
+		topNewsURLs = new ArrayList<String>();
+		topNewsURLs
+				.add("http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_0_suda&top_time="
+						+ today
+						+ "&top_show_num=20&top_order=DESC&js_var=all_1_data&get_new=1");
+		topNewsURLs
+				.add("http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_news_0_suda&top_time="
+						+ today
+						+ "&get_new=1&top_show_num=20&top_order=DESC&js_var=all_1_data");
+		topNewsURLs
+				.add("http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_not_url=/ustock/&top_type=day&top_cat=finance_stock_conten_suda&top_time="
+						+ today
+						+ "&top_show_num=20&top_order=DESC&get_new=1&js_var=stock_1_data");
+		topNewsURLs
+				.add("http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_money_suda&top_time="
+						+ today
+						+ "&top_show_num=20&top_order=DESC&get_new=1&js_var=money_1_data");
+	}
+
+	@Override
+	public void run() {
+		log.info("------------start top news spider--------------");
+		try {
+			for (int i = 0; i < topNewsURLs.size(); i++) {
+				log.info("start top news URL " + topNewsURLs.get(i));
+				Document dynamic_doc = JsoupParse.getDocument(
+						topNewsURLs.get(i), "utf-8", 1000);
+				String jsonString = dynamic_doc.body().html().split("=")[1]
+						.toString();
+				JSONObject jsonObject = JSONObject.parseObject(jsonString
+						.substring(1, jsonString.length() - 1));
+				JSONArray jsonArray = jsonObject.getJSONArray("data");
+				log.info("has gotten the JSON data");
+				for (int j = 0; j < jsonArray.size(); j++) {
+					String topNewsTitle = jsonArray.getJSONObject(j)
+							.get("title").toString();
+					String news_link = jsonArray.getJSONObject(j)
+							.get("url").toString();
+					Date pubDate = DateUtils
+							.parsecommonFormat(jsonArray.getJSONObject(j)
+							.get("create_date").toString());
+					String media = jsonArray.getJSONObject(j)
+							.get("media").toString();
+					if(newsMatch(topNewsTitle)!=null && (getNewsKeywords(topNewsTitle)!=null 
+							&& !"".equals(getNewsKeywords(topNewsTitle))) && checkTopNews(news_link)==null){
+						saveTopNews(topNewsTitle, news_link, pubDate, media);
+					}
+				}
+				log.info("stop new URL");
+			}
+			Thread.sleep(1000 * 60 * 2);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/** 
+	 * @Title: getNewsKeywords 
+	 * @Description: 获取新闻关键字
+	 * @param: String
+	 * @return: String
+	 * @throws 
+	 */
+	public String getNewsKeywords(String newsTitle){
+		return BadNewsFilterUtil.getInstance().isBadNews(newsTitle);
+	}
+
+	/**  
+	 * @Title: checkTopNews
+	 * @Description: 检查top news是否已经存储到mysql
+	 * @param: String
+	 * @return: TopNewsStock
+	 */
+	public TopNewsStock checkTopNews(String newsLink) {
+		return ServiceFactory.createTopNewsStockService().queryTopNewsByLink(newsLink);
+	}
+	
+	/**
+	 * @Title: newsMatch
+	 * @Description: 检查热点新闻是否和股票名字以及股票相关的热点关键词关联并获取股票代码
+	 * @param String
+	 * @return String
+	 */
+	public String newsMatch(String topNewsTitle) {
+		// 获取数据库中已有股票代码和股票名称，简称， 常用名
+		IndustryInfoService industryInfoService = ServiceFactory
+				.createIndustryInfoService();
+		industryStocks = industryInfoService.getAllIndustryStocks();
+		String stockCodeString=null;
+		if(industryStocks!=null && industryStocks.size()>0){
+			for(int i=0; i<industryStocks.size(); i++){
+				IndustryStocks industryStock = industryStocks.get(i);
+				String stockName = industryStock.getStockName();
+				stockName = stockName.replaceAll("股份", "");
+				stockName = stockName.replace("*ST", "");
+				stockName = stockName.replace("ST", "");
+				stockName = stockName.replace("集团", "");
+				if((topNewsTitle.contains(stockName) && topNewsTitle.contains(stockName))
+				|| (industryStock.getShortName()!=null && topNewsTitle.contains(industryStock.getShortName()))){
+					if(stockCodeString!=null){
+						stockCodeString = stockCodeString + "," + industryStock.getStockId();
+					} else {
+						stockCodeString = industryStock.getStockId();
+					}	
+				}
+				String keywords = industryStock.getKeyWords();
+				if (keywords != null) {
+					String[] keywords_list = keywords.split(",");
+					for (int j = 0; j < keywords_list.length; j++) {
+						if (topNewsTitle.contains(keywords_list[j])){
+							if(stockCodeString!=null){
+								stockCodeString = stockCodeString + "," + industryStock.getStockId();
+							} else {
+								stockCodeString = industryStock.getStockId();
+							}
+						}		
+					}
+				}
+			}
+		}
+		return stockCodeString;
+	}
+
+	/**
+	 * @Title: saveTopNews
+	 * @Description: 存储topnews到mysql
+	 * @param String
+	 * @param String
+	 * @param Date
+	 * @param String
+	 * @return
+	 */
+	public void saveTopNews(String topNewsTitle, String news_link, Date pubDate, String media) {
+		for(int i = 0; i < newsMatch(topNewsTitle).split(",").length; i++){
+			TopNewsStock topNewsStock = new TopNewsStock();
+			topNewsStock.setId(CommonUtil.getGenerateId());
+			topNewsStock.setTitle(topNewsTitle);
+			topNewsStock.setNewsLink(news_link);
+			topNewsStock.setPubDate(pubDate);
+			topNewsStock.setStockCode(newsMatch(topNewsTitle).split(",")[i]);
+			topNewsStock.setMedia(media);
+			topNewsStock.setCreateDate(new Date());
+			topNewsStock.setKeywords(getNewsKeywords(topNewsTitle));
+			ServiceFactory.createTopNewsStockService().insertTopNewsStock(topNewsStock);
+		}
+		
+	}
+
+	public static void work() {
+		new Thread(new FinanceNewsSpider()).start();
+	}
+
+	public static void main(String[] args) throws Exception {
+		work();
+	}
+
+}

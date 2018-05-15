@@ -1,0 +1,23 @@
+package com.dxc.darklight.dao;
+
+import java.util.List;
+
+import org.nutz.dao.Cnd;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.StockComment;
+import com.dxc.darklight.model.StockNews;
+
+@Repository
+public class StockCommentDao extends BaseDao {
+	
+	public String insertStockComment(StockComment stockComment){
+		dao.insert(stockComment);
+		return "success";
+	}
+	
+	public List<StockComment> listStockComments(){
+		return dao.query(StockComment.class, Cnd.where("title",  "<>",  "1"));
+	}
+	
+}

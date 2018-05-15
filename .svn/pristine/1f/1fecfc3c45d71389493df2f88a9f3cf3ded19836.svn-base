@@ -1,0 +1,6 @@
+package com.dxc.darklight.service;
+
+
+public interface StockNewsService {
+	//todo
+}

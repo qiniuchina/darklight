@@ -1,0 +1,24 @@
+package com.dxc.darklight.service;
+
+import java.util.Date;
+import java.util.List;
+
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.model.User;
+
+
+public interface StockNewsService {
+	
+	public StockNews queryByIdForSolr(String id);
+	public void updateForSolr(StockNews stockNews);
+	public int removeByIdForSolr(String id);
+	public String insertStockNews(StockNews stockNews) throws Exception;
+	public StockNews queryByLink(String newsLink);
+	public List<StockNews> listStockNews();
+	public List<StockNews> refreshStockNews(long id,Date pubDate);
+	public List<StockNews> stockNewsHistoryList(long id,Date pubDate);
+	public void updateNewsFlagById(String id);
+	public User getUserById(String userId);
+	public void saveFavoriteNews(String userId, String newsId, String stockCode);
+	public void deleteFavoriteNews(String newsId, String userId);
+}

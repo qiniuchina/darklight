@@ -1,0 +1,12 @@
+package com.dxc.darklight.service;
+
+import com.dxc.darklight.model.StockNews;
+
+
+public interface StockNewsService {
+	
+	public StockNews queryByIdForSolr(String id);
+	public void updateForSolr(StockNews stockNews);
+	public int removeByIdForSolr(String id);
+	public String insertStockNews(StockNews stockNews) throws Exception;
+}

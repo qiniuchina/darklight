@@ -1,0 +1,142 @@
+package com.dxc.darklight.model;
+
+import java.io.Serializable;
+import java.util.Date;
+
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrInputDocument;
+import org.nutz.dao.entity.annotation.Column;
+import org.nutz.dao.entity.annotation.PK;
+import org.nutz.dao.entity.annotation.Table;
+
+import com.dxc.darklight.datasource.solr.Indexable;
+
+/**
+ * 
+ * @author zhliu
+ *
+ */
+@Table("top_news_stock")
+@PK( {"id"} )
+public class TopNewsStock implements Serializable,Indexable {
+	private static final long serialVersionUID = 1L;
+	/** 新闻对象ID */
+	@Column("id")
+	private String id;
+	/** 采集到的数据标题 */
+	@Column("title")
+	private String title;
+	/** 采集到的新闻链接地址 */
+	@Column("news_link")
+	private String newsLink;
+	/** 发布日期 */
+	@Column("pub_date")
+	private Date pubDate;
+	/**  股票代码 */
+	@Column("stock_code")
+	private String stockCode;
+	/**  权重值 */
+	@Column("media")
+	private String media;
+	/** 抓取时间 */
+	@Column("create_dt")
+	private Date createDate;
+	/** 利空关键词 */
+	@Column("keywords")
+	private String keywords;
+	/** 新闻标识--- 0 未处理；1 已处理； 2 黑天鹅 */
+	@Column("flag")
+	private Integer flag;
+	/** 更新时间 */
+	@Column("update_dt")
+	private Date updateDate;
+	
+	@Override
+	public SolrInputDocument toSolrInputDocument() {
+		SolrInputDocument doc = new SolrInputDocument();
+		doc.addField("id", getId());
+		doc.addField("title", getTitle());
+		doc.addField("stockCode", getStockCode());
+		doc.addField("newsLink", getNewsLink());
+		doc.addField("pubDate", getPubDate());
+		doc.addField("createDate", getCreateDate());
+		doc.addField("keywords", getKeywords());
+		doc.addField("flag", getFlag());
+		doc.addField("updateDate", getUpdateDate());
+		return doc;
+	}
+	@Override
+	public void readFromSolrDocument(SolrDocument doc) {
+		setId((String) doc.getFieldValue("id"));
+		setTitle((String) doc.getFieldValue("title"));
+		setStockCode((String) doc.getFieldValue("stockCode"));
+		setNewsLink((String) doc.getFieldValue("newsLink"));
+		setPubDate((Date)doc.getFieldValue("pubDate"));
+		setCreateDate((Date)doc.getFieldValue("createDate"));
+		setKeywords((String)doc.getFieldValue("keywords"));
+		setFlag((Integer)doc.getFieldValue("flag"));
+		setUpdateDate((Date)doc.getFieldValue("updateDate"));
+	}
+	
+	public String getId() {
+		return id;
+	}
+	public void setId(String id) {
+		this.id = id;
+	}
+	public String getTitle() {
+		return title;
+	}
+	public void setTitle(String title) {
+		this.title = title;
+	}
+	public String getNewsLink() {
+		return newsLink;
+	}
+	public void setNewsLink(String newsLink) {
+		this.newsLink = newsLink;
+	}
+	public Date getPubDate() {
+		return pubDate;
+	}
+	public void setPubDate(Date pubDate) {
+		this.pubDate = pubDate;
+	}
+	public String getStockCode() {
+		return stockCode;
+	}
+	public void setStockCode(String stockCode) {
+		this.stockCode = stockCode;
+	}
+	public String getMedia() {
+		return media;
+	}
+	public void setMedia(String media) {
+		this.media = media;
+	}
+	
+	public String getKeywords() {
+		return keywords;
+	}
+	public void setKeywords(String keywords) {
+		this.keywords = keywords;
+	}
+	public Date getCreateDate() {
+		return createDate;
+	}
+	public void setCreateDate(Date createDate) {
+		this.createDate = createDate;
+	}
+	public Integer getFlag() {
+		return flag;
+	}
+	public void setFlag(Integer flag) {
+		this.flag = flag;
+	}
+	public Date getUpdateDate() {
+		return updateDate;
+	}
+	public void setUpdateDate(Date updateDate) {
+		this.updateDate = updateDate;
+	}
+}

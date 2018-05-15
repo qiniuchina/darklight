@@ -1,0 +1,46 @@
+package com.dxc.darklight.dao;
+
+import java.util.Date;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.nutz.dao.Cnd;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.entity.Record;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class UserStockDao extends BaseDao{
+
+	private static final Logger log = LogManager.getLogger(UserStockDao.class);
+	
+	public void insertUserStock(String userId, String stockCode){
+		Sql sql = Sqls.create("insert into user_stock "
+				+ "(user_id,stock_code,create_dtm,create_by) values (@userId,@stockCode,@createDtm,@createBy)");
+		log.debug("insertUserStock run sql: " + sql );
+		sql.params().set("userId", userId);
+		sql.params().set("stockCode", stockCode);
+		sql.params().set("createDtm", new Date());
+		sql.params().set("createBy", userId);
+		dao.execute(sql);
+	}
+
+	public int checkExistStock(String userId, String stockCode) {
+		// TODO Auto-generated method stub
+		int i = dao.count("user_stock", Cnd.where("user_id","=",userId).and("stock_code","=",stockCode).and("is_deleted","=",0));
+		return i;
+	}
+
+	public void deleteFavoriteStock(String stockCode, String userId) {
+		// TODO Auto-generated method stub
+		Sql sql = Sqls.create("update user_stock "
+				+ " set is_deleted = 1  where user_id=@userId and stock_code = @stockCode ");
+		log.debug("deleteFavoriteStock run sql: " + sql );
+		sql.params().set("userId", userId);
+		sql.params().set("stockCode", stockCode);
+		dao.execute(sql);
+	}
+
+}

@@ -1,0 +1,14 @@
+package com.dxc.darklight.service;
+
+import java.util.List;
+
+import com.dxc.darklight.model.StockCurrentPrice;
+
+
+public interface UserStockNewsService {
+	
+	public List<String> getAllUserStockCodes();
+	public void saveUserStockCodes(StockCurrentPrice sc);
+	public void deletePreviousData(int hours);
+	public List<StockCurrentPrice> getStockPricesByNumber(String stockCd, int minuts);
+}

@@ -1,0 +1,7 @@
+package com.dxc.darklight.service;
+
+import com.dxc.darklight.model.TopNewsStock;
+
+public interface TopNewsStockService {
+	public boolean insertTopNewsStock(TopNewsStock topNewsstock) throws Exception;
+}

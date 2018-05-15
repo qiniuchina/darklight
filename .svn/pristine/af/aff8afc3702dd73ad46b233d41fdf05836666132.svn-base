@@ -1,0 +1,27 @@
+package com.dxc.darklight.service.impl;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.UserDao;
+import com.dxc.darklight.model.User;
+import com.dxc.darklight.service.UserService;
+
+@Service
+public class UserServiceImpl implements UserService {
+	
+	private static final Logger log = LogManager.getLogger(UserServiceImpl.class);
+
+	@Autowired
+	UserDao dao;
+	
+	@Override
+	public User getUserById(String userId) {
+		// TODO Auto-generated method stub
+		log.debug("queryUserId is " + userId);
+		return dao.getHappyUserById(userId);
+	}
+
+}

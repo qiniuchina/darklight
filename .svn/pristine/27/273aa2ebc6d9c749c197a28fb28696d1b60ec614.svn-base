@@ -1,0 +1,61 @@
+package com.dxc.darklight.dao;
+
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.nutz.dao.Chain;
+import org.nutz.dao.Cnd;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.IndustryInfo;
+import com.dxc.darklight.model.IndustryStocks;
+
+@Repository
+public class IndustryInfoDao extends BaseDao {
+
+	private static final Logger log = LogManager.getLogger(IndustryInfoDao.class);
+	/**
+	 * 插入mysql
+	 * @param industryInfo
+	 * @return
+	 * @throws Exception
+	 */
+	public void insertIndustryInfo(IndustryInfo industryInfo) throws Exception{		
+		dao.insert(industryInfo);
+	}
+	
+	public void insertIndustryStocks(IndustryStocks industryStocks) throws Exception{		
+		dao.insert(industryStocks);
+	}
+	
+	public IndustryInfo getInsustryInfoByName(String name)
+	{
+		return dao.fetch(IndustryInfo.class, Cnd.wrap("industry_nm = '"+name+"'"));
+	}
+	
+	public void updateIndustryInfo(IndustryInfo industryInfo) throws Exception{		
+		dao.update(IndustryInfo.class, Chain.make("industry_nm", industryInfo.getIndustryNm()).add("upd_dtm", industryInfo.getUpdDtm()), 
+				Cnd.wrap("industry_cd = "+industryInfo.getIndustryCd()));
+	}
+	
+	public IndustryStocks getIndustryStocksByCode(String code)
+	{
+		return dao.fetch(IndustryStocks.class, Cnd.wrap("stock_id = '"+code+"'"));
+	}
+	
+	public void updateIndustryStocks(IndustryStocks industryStock) throws Exception{		
+		dao.update(IndustryStocks.class, Chain.make("stock_name", industryStock.getStockName()).add("upd_dtm", industryStock.getUpdDtm())
+				.add("total_stock", industryStock.getTotalStock()).add("stock_win", industryStock.getStockWin()).add("pass_stock", industryStock.getPassStock()), 
+				Cnd.wrap("stock_id = '"+industryStock.getStockId()+"'"));
+	}
+	
+	/**
+	 * 获取所有股票基础信息
+	 * @param
+	 * @return List<IndustryStocks>
+	 */
+	public List<IndustryStocks> getAllIndustryStocks(){
+		return dao.query(IndustryStocks.class, null);
+	}
+}

@@ -1,0 +1,20 @@
+package com.dxc.darklight.dao;
+
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.StockInfo;
+
+@Repository
+public class StockInfoDao extends BaseDao {
+	private static final Logger log = LogManager.getLogger(StockInfoDao.class);
+	
+	public List<StockInfo> getAllStockInfo()
+	{
+		log.info("getAllStockInfo");
+		return dao.query(StockInfo.class, null);
+	}
+}

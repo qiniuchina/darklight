@@ -1,0 +1,28 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<title>footer</title>
+
+
+</head>
+<body>
+	<footer style="z-index:2;">
+	<div class="mune_left">
+		<a href="/darklight/stocknews/list?userId=${sessionScope.user.userId}&newsSource=0" style="text-decoration: none;">
+    	<i class="fa fa-newspaper-o fa-2x"></i>
+    	<p>黑天鹅</p>
+        </a>
+    </div>
+	
+	<div class="mune_right">
+		<a href="/darklight/stock/list?userId=${sessionScope.user.userId}" style="text-decoration: none;">
+    	<i class="fa fa-star-o fa-2x"></i>
+    	<p>朕喜欢</p>
+        </a>
+    </div>
+</footer>
+</body>
+
+</html>

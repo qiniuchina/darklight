@@ -1,0 +1,64 @@
+package com.dxc.darklight.service.impl;
+
+import java.util.Date;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.StockModelMountDao;
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.service.StockModelMountService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+
+@Service
+public class StockModelMountServiceImpl implements StockModelMountService {
+	
+	/*没有计算结果阶段*/
+	private static int FAST_ERROR_PHASE = -1;
+	private static String FAST_ERROR_PHASE_STR = "非黑天鹅股票";
+	/*快速下跌阶段*/
+	private static int FAST_DROP_PHASE = 0;
+	private static String FAST_DROP_PHASE_STR = "快速下跌阶段";
+	
+	/*震荡阶段*/
+	private static int FAST_SHOCK_PHASE = 1;
+	private static String FAST_SHOCK_PHASE_STR = "震荡阶段";
+	
+	/*平稳阶段*/
+	private static int FAST_STABLE_PHASE = 2;
+	private static String FAST_STABLE_PHASE_STR = "平稳阶段";
+	@Autowired
+	StockModelMountDao stockModelMountDao;
+
+	//web
+	@Override
+	public List<StockModelMount> getStockModelMountList(String userId){
+		List<StockModelMount> list= stockModelMountDao.getStockModelMountList(userId);
+		if(list!=null){
+			for(StockModelMount mount:list){
+				int phase=mount.getFlagPhase();
+				if(FAST_DROP_PHASE==phase){
+					mount.setPricePhase(FAST_DROP_PHASE_STR);
+				}else if(FAST_SHOCK_PHASE==phase){
+					mount.setPricePhase(FAST_SHOCK_PHASE_STR);
+				}else if(FAST_STABLE_PHASE==phase){
+					mount.setPricePhase(FAST_STABLE_PHASE_STR);
+				}else{
+					mount.setPricePhase(FAST_ERROR_PHASE_STR);
+				}
+				StockCurrentPrice stockCurr=CommonUtil.getCurrentPriceByStockCode(CommonUtil.formatStockCode(mount.getStockCode()));
+				if(stockCurr!=null){
+					mount.setCurrPrice(String.valueOf(stockCurr.getStockPrice()));
+					mount.setCurrUpDown(String.valueOf(stockCurr.getStockUpdownPercent()));
+				}
+				if(CommonUtil.isEmpty(mount.getStockDate())){
+				mount.setStockDate(DateUtils.formatCommonFormat(new Date()));
+				}
+			}
+		}
+		return list;
+	}
+}

@@ -1,0 +1,9 @@
+package com.dxc.darklight.service;
+
+import com.dxc.darklight.model.User;
+
+public interface UserService {
+	
+	public User getUserById(String userId);
+
+}

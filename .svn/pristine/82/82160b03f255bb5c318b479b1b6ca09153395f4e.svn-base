@@ -1,0 +1,59 @@
+package com.dxc.darklight.dao;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.nutz.dao.Cnd;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.util.CommonUtil;
+
+@Repository
+public class TopNewsStockDao extends BaseDao{
+	
+	/**
+	 * 新增topnews
+	 * @param TopNewsStock
+	 * @return
+	 */
+	public void insertTopNewsStock(TopNewsStock topNewsStock) {
+		topNewsStock.setId(CommonUtil.getGenerateId());
+		dao.insert(topNewsStock);
+	}
+	
+	/**
+	 * 通过新闻链接URL查找新闻
+	 * @param String
+	 * @return TopNewsStock
+	 */
+	public TopNewsStock queryTopNewsByLink(String newsLink) {
+		List<TopNewsStock> TopNewsStock = dao.query(TopNewsStock.class, Cnd.where("news_link", "=", newsLink));
+		TopNewsStock tns = null;
+		if(TopNewsStock!=null && TopNewsStock.size()>0){
+			tns = TopNewsStock.get(0);
+		}
+		return tns;
+	}
+	
+	public List<TopNewsStock> getAllTopNews() {
+		Sql sql = Sqls.queryEntity("SELECT * FROM top_news_stock WHERE flag IS NULL OR flag=0");
+		List<TopNewsStock> newsList = new ArrayList<TopNewsStock>();
+		sql.setEntity(dao.getEntity(TopNewsStock.class));
+		dao.execute(sql);
+		List<TopNewsStock> ls = sql.getList(TopNewsStock.class);
+		for (TopNewsStock re : ls) {
+			newsList.add(re);
+		}
+		return newsList;
+	}
+
+	public void updateNewsById(String newsId, int flag) {
+		Sql sql = Sqls.create("update top_news_stock set flag = @flag,update_dt=NOW() where id = @id");
+		sql.params().set("flag", flag);
+		sql.params().set("id", newsId);
+		dao.execute(sql);
+
+	}
+}

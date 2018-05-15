@@ -1,0 +1,57 @@
+package com.dxc.darklight.service.impl;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.IndustryInfoDao;
+import com.dxc.darklight.model.IndustryInfo;
+import com.dxc.darklight.model.IndustryStocks;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.IndustryInfoService;
+
+@Service
+public class IndustryInfoServiceImpl extends BaseService implements IndustryInfoService {
+
+	private static final Logger log = LogManager.getLogger(IndustryInfoServiceImpl.class);
+
+	@Autowired
+	IndustryInfoDao dao;
+
+	@Override
+	public int insertOrUpdateIndustryInfo(IndustryInfo industryInfo)
+			throws Exception {
+		int rev = -1;
+		IndustryInfo ii = dao.getInsustryInfoByName(industryInfo.getIndustryNm());
+		if(ii == null)
+		{
+			dao.insertIndustryInfo(industryInfo);
+			IndustryInfo revIi = dao.getInsustryInfoByName(industryInfo.getIndustryNm());
+			rev = revIi.getIndustryCd();
+		}
+		else
+		{
+			rev = ii.getIndustryCd();
+			industryInfo.setIndustryCd(rev);
+			dao.updateIndustryInfo(industryInfo);
+		}
+		
+		return rev;
+	}
+
+	@Override
+	public void insertOrUpdateIndustryStocks(IndustryStocks industryStocks)
+			throws Exception {
+		
+		IndustryStocks is = dao.getIndustryStocksByCode(industryStocks.getStockId());
+		if(is == null)
+		{
+			dao.insertIndustryStocks(industryStocks);
+		}
+		else
+		{
+			dao.updateIndustryStocks(industryStocks);
+		}
+	}
+}

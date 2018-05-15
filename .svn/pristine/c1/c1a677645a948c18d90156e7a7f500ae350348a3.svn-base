@@ -1,0 +1,102 @@
+/**
+ * All rights Reserved
+ * @Title: 	Downloader.java 
+ * @Package com.dxc.darklight.spider 
+ * @Description: Page Downloader
+ * @author:	 Wei Wei  
+ * @date:	Mar 14, 2017 4:04:35 PM 
+ * @version	V1.0   
+ */
+package com.dxc.darklight.spider;
+
+import java.io.File;
+import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import com.dxc.darklight.conf.ConfFactory;
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StockNews;
+
+/** 
+ * @ClassName:	Downloader 
+ * @Description: Page Downloader
+ * @author:	Wei Wei
+ * @date:	Mar 14, 2017 4:04:35 PM 
+ */
+public class Downloader implements Runnable{
+	
+	private PageProcessor pageProcessor = new PageProcessor();
+
+	public static String entryUrl = ConfFactory.getConf().get("StockNewsEntry","http://roll.finance.sina.com.cn/finance/zq1/ssgs/index.shtml");
+	
+	@Override
+	public void run() {
+		while(true){
+			try {
+				Document doc = JsoupParse.getDocument(entryUrl, "GB2312", 1000);
+				Elements ulElements = JsoupParse.getElements(doc,
+						"ul[class=list_009]");
+//				Element nextPageElement = JsoupParse.getElement(doc,
+//						"span[class=pagebox_next]");
+//				String nextPageLink = JsoupParse.getAttr(
+//						JsoupParse.getElement(nextPageElement, "a"), "href");
+//				System.out.println(nextPageLink);
+				for (Element ulElement : ulElements) {
+					Elements liElements = JsoupParse.getElements(ulElement, "li");
+					for (Element liElement : liElements) {
+						String newsTitle = JsoupParse.getText(JsoupParse.getElement(liElement, "a"));
+						Integer newsWeight = pageProcessor.getNewsWeight(newsTitle);
+						String newsLink = JsoupParse.getAttr(JsoupParse.getElement(liElement, "a"), "href");
+						if(newsWeight > 0 && pageProcessor.checkNewsExist(newsLink) == null){
+							StockNews stockNews = new StockNews();
+							stockNews.setFetchDate(new Date());
+							stockNews.setNewsLink(newsLink);
+							stockNews.setTitle(newsTitle);
+							stockNews.setWeight(newsWeight);
+							Pattern p = Pattern.compile("\\(.*?\\)");
+							Matcher m = p.matcher(JsoupParse.getText(liElement));
+							Date newsPubDate = null;
+							String stockCode = null;
+							while (m.find()) {
+								newsPubDate = pageProcessor.getNewsPubDate(m.group());
+								stockNews.setPubDate(newsPubDate);
+							}
+							Document news = JsoupParse.getDocument(newsLink, "UTF-8", 1000);
+							Element divElements = JsoupParse.getElement(news, "div[class=hqimg_wrapper]");
+							if(divElements!=null){
+								Element element = JsoupParse.getElement(divElements, "img");
+								String stockCodeString = JsoupParse.getAttr(element, "src");
+								String[] s = stockCodeString.split("/");
+								stockCode = s[s.length-1].substring(0, s[s.length-1].indexOf("."));
+								stockNews.setStockCode(pageProcessor.formatStockCode(stockCode));
+							}
+							pageProcessor.saveNews(stockNews);
+						}
+					}
+				}
+//				Thread.sleep(1000*60*5);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public static void work() {
+		// int cpuNums = Runtime.getRuntime().availableProcessors();
+		// ExecutorService fixedThreadPool = Executors.newFixedThreadPool(cpuNums);
+		ExecutorService fixedThreadPool = Executors.newFixedThreadPool(1);
+		fixedThreadPool.execute(new Downloader());
+	}
+
+	public static void main(String[] args) throws Exception {
+		work();
+	}
+	
+}

@@ -1,0 +1,27 @@
+package com.dxc.darklight.dao;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.IndustryInfo;
+import com.dxc.darklight.model.IndustryStocks;
+
+@Repository
+public class IndustryInfoDao extends BaseDao {
+
+	private static final Logger log = LogManager.getLogger(IndustryInfoDao.class);
+	/**
+	 * 插入mysql
+	 * @param industryInfo
+	 * @return
+	 * @throws Exception
+	 */
+	public void insertIndustryInfo(IndustryInfo industryInfo) throws Exception{		
+		dao.insert(industryInfo);
+	}
+	
+	public void insertIndustryStocks(IndustryStocks industryStocks) throws Exception{		
+		dao.insert(industryStocks);
+	}
+}

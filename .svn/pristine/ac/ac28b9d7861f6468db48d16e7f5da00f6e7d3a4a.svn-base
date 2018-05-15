@@ -1,0 +1,213 @@
+package com.dxc.darklight.spider;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+
+import com.alibaba.fastjson.JSONObject;
+import com.dxc.darklight.model.BaseStocks;
+import com.dxc.darklight.model.StocksInfoEntity;
+import com.dxc.darklight.model.WeiXinTemplateModel;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.weixin.WeiXinUtil;
+import com.dxc.darklight.weixin.token.TokenService;
+
+public class FastDropStocksModel implements Runnable {
+	
+	private boolean stoped = false;
+	
+	private String begin = null;
+	
+	private String end = null;
+	
+	private List<HashMap<String, Object>> pReturnMap = null;
+	
+	private List<BaseStocks> pData = null;
+	
+	private int num = 0;
+	
+	public void setNum(int num) {
+		this.num = num;
+	}
+
+	public void setpReturnMap(List<HashMap<String, Object>> pReturnMap) {
+		this.pReturnMap = pReturnMap;
+	}
+
+	public void setpData(List<BaseStocks> pData) {
+		this.pData = pData;
+	}
+
+	public void setBegin(String begin) {
+		this.begin = begin;
+	}
+
+	public void setEnd(String end) {
+		this.end = end;
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		Calendar cal = Calendar.getInstance();
+		if(cal.get(Calendar.DAY_OF_WEEK)==Calendar.SATURDAY||cal.get(Calendar.DAY_OF_WEEK)==Calendar.SUNDAY)
+		{
+			System.out.println("此时间段不是交易时间!");
+			return;
+		}
+		StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+		List<BaseStocks> baseStocks = stockInfoService.getAllBaseStocks();
+		if(baseStocks==null || baseStocks.size()<=0)
+		{
+			return;
+		}
+		String begins = null, ends = null;
+		SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd");
+		ends = sf.format(cal.getTime());
+		cal.add(Calendar.DATE, -30);
+		begins = sf.format(cal.getTime());
+		
+		//定义变量
+		List<HashMap<String, Object>> datas = Collections.synchronizedList(new ArrayList<HashMap<String, Object>>());
+		
+		int loopsize = baseStocks.size() / 100;
+		List<FastDropStocksModel> allTheads = new ArrayList<FastDropStocksModel>();
+		for(int i=0; i<loopsize ; i++)
+		{
+			List<BaseStocks> toData = baseStocks.subList(100 * i, (100 * i) + 100);
+			FastDropStocksModel fsModel = new FastDropStocksModel();
+			fsModel.setBegin(begins);
+			fsModel.setEnd(ends);
+			fsModel.setpReturnMap(datas);
+			fsModel.setpData(toData);
+			fsModel.setNum(i+1);
+			allTheads.add(fsModel);
+			new Thread(fsModel).start();
+			System.out.println("启动线程:"+(i+1));
+		}
+		
+		int mark = 1;
+		do
+		{
+			Thread.sleep(1000 * 60 * 1);
+			mark = 1;
+			for(int i=0; i<allTheads.size(); i++)
+			{
+				FastDropStocksModel fs = allTheads.get(i);
+				if(fs!=null && !fs.isStoped())
+				{
+					mark++;
+				}
+			}
+		System.out.println("线程执行情况检查, 当前线程数:"+mark);
+		}while(mark!=1);
+		
+		
+		//排序，从低到高的排序
+		int size = datas.size();
+		for(int i=0; i<size; i++)
+		{
+			for(int j=i; j<size; j++)
+			{
+				HashMap<String, Object> hmi = datas.get(i);
+				double di = (double)hmi.get("stock_percent");
+				HashMap<String, Object> hmj = datas.get(j);
+				double dj = (double)hmj.get("stock_percent");
+				if(dj < di)
+				{
+					datas.set(i, hmj);
+					datas.set(j, hmi);
+				}
+			}
+		}
+		
+		//打印跌的最厉害的10只股票
+		String sendStr = "";
+		for(int i=0; i<30; i++)
+		{
+			HashMap<String, Object> hm = datas.get(i);
+			String stockName = (String)hm.get("stock_name");
+			sendStr+="("+stockName+"), ";
+		}
+		sendStr = sendStr.substring(0, sendStr.length() - 2);
+		SimpleDateFormat sfa = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+		Calendar calTime = Calendar.getInstance();
+		String wtime = sfa.format(calTime.getTime());
+		
+		String token = TokenService.getTokenFromAli();
+		WeiXinTemplateModel tempModel = new WeiXinTemplateModel();
+		tempModel.setToUser("oxw8iwZ9w0RCrnCGs5xPk3-cmp2Y");
+		tempModel.setFirst("跌幅Top30");
+		tempModel.setTime(wtime);
+		tempModel.setColor("#ff0000");
+		tempModel.setContent(sendStr);
+		tempModel.setRemark("以上为最近一个月跌幅最深的30只股票!");
+		
+		String url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=" + token;
+		String strJson = "{\"touser\" :\""+tempModel.getToUser()+"\",";
+        strJson += "\"template_id\":\"tvRyfF1qrurMudMsEigitxG3tbgoz-1T6SY_Ev3rGbU\",";
+        String strurl = tempModel.getUrl();
+		strJson += "\"url\":\""+strurl+"\",";
+        strJson += "\"data\":{";
+        String first= tempModel.getFirst();
+		strJson += "\"first\":{\"value\":\""+first+"\",\"color\":\"#173177\"},";
+        String time= tempModel.getTime();
+		strJson += "\"keyword1\":{\"value\":\""+time+"\",\"color\":\"#173177\"},";
+        String content= tempModel.getContent();
+		strJson += "\"keyword2\":{\"value\":\""+content+"\",\"color\":\""+tempModel.getColor()+"\"},";
+        String remark= tempModel.getRemark();
+		strJson += "\"remark\":{\"value\":\""+remark+"\",\"color\":\"#173177\"}";
+        strJson += "}}";
+        WeiXinUtil.httpRequest(url, "POST", strJson);
+	}
+
+	@Override
+	public void run() {
+		System.out.println("线程 ("+num+") 正在执行!");
+		HashMap<String, Object> hMap = null;
+		for(int i=0; i<pData.size(); i++)
+		{
+			hMap = new HashMap<String, Object>();
+			BaseStocks sn = pData.get(i);
+			String stockCd = sn.getStockCode();
+			hMap.put("stock_code", sn.getStockCode());
+			hMap.put("stock_name", sn.getStockName());
+			if(stockCd!=null)
+			{
+				try
+				{
+					List<StocksInfoEntity> dealInfo = CommonUtil.getStockDealInfo(stockCd, begin, end, false);
+					//计算交易量的模型
+					if(dealInfo!=null && dealInfo.size()>=15)
+					{
+						double upDownPercent = 0f;
+						for(StocksInfoEntity sen : dealInfo)
+						{
+							if(sen != null)
+							{
+								upDownPercent += sen.getUpDownMoneyPercent();
+							}
+						}
+						
+						hMap.put("stock_percent", upDownPercent);
+						pReturnMap.add(hMap);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			System.out.println("线程 ("+num+") 正在执行:"+sn.getStockName());
+		}
+		stoped = true;
+	}
+	
+	public boolean isStoped()
+	{
+		return stoped;
+	}
+
+}

@@ -1,0 +1,130 @@
+package com.dxc.darklight.dao;
+
+import java.util.Date;
+import java.util.List;
+
+import org.nutz.dao.Cnd;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.StockComment;
+
+@Repository
+public class StockCommentDao extends BaseDao {
+	
+	/**
+	 * @Description 新增StockNews
+	 * @param StockComment
+	 */
+	public String insertStockComment(StockComment stockComment){
+		dao.insert(stockComment);
+		return "success";
+	}
+	
+	/**
+	 * @Description 通过blogUrl查找StockComment
+	 * @param String
+	 * @return StockComment
+	 */
+	public StockComment queryStockCommentByLink(String blogLink) {
+		List<StockComment> stockCommentList = dao.query(StockComment.class,
+				Cnd.where("news_link", "=", blogLink));
+		StockComment stockComment = null;
+		if (stockCommentList != null && stockCommentList.size() > 0) {
+			stockComment = stockCommentList.get(0);
+		}
+		return stockComment;
+	}
+	
+	/**
+	 * @Description 获取最新的大盘综述
+	 * @return List<StockComment>
+	 */
+	public List<StockComment> listStockComments(){
+		List<StockComment> commentsAccuracy=getCommentsAccuracy();
+		Sql sql = Sqls.queryEntity("select * from stock_comments group by id order by pub_date desc limit 10");
+		sql.setEntity(dao.getEntity(StockComment.class));
+		dao.execute(sql);
+		List<StockComment> commentList = sql.getList(StockComment.class);
+		for(StockComment accuracy:commentsAccuracy){
+			for(StockComment comment: commentList){
+				if(accuracy.getAuthor().equals(comment.getAuthor())){
+					comment.setAccuracy(Integer.parseInt(accuracy.getCorrect()));
+				}
+			}
+		}
+		return commentList;
+	}
+	
+	/**
+	 * @Description 获取更新的大盘综述
+	 * @param Date
+	 * @return List<StockComment>
+	 */
+	public List<StockComment> refreshStockComments(Date pubDate) {
+		List<StockComment> commentsAccuracy=getCommentsAccuracy();
+		Sql sql = Sqls.queryEntity("select * from stock_comments where date_format(pub_date,'%Y-%m-%d %H:%i') >= @pub_date group by id order by pub_date desc limit 10");
+		sql.setEntity(dao.getEntity(StockComment.class));
+		sql.params().set("pub_date", pubDate);
+		dao.execute(sql);
+		List<StockComment> commentList = sql.getList(StockComment.class);
+		for(StockComment accuracy:commentsAccuracy){
+			for(StockComment comment: commentList){
+				if(accuracy.getAuthor().equals(comment.getAuthor())){
+					comment.setAccuracy(Integer.parseInt(accuracy.getCorrect()));
+				}
+			}
+		}
+		return commentList;
+	}
+
+	/**
+	 * @Description 获取历史的大盘综述列表
+	 * @param Date
+	 * @return List<StockComment>
+	 */
+	public List<StockComment> listStockCommentsHistory(Date pubDate) {
+		List<StockComment> commentsAccuracy=getCommentsAccuracy();
+		Sql sql = Sqls.queryEntity("select * from stock_comments where date_format(pub_date,'%Y-%m-%d %H:%i') <= @pub_date group by id order by pub_date desc limit 10");
+		sql.setEntity(dao.getEntity(StockComment.class));
+		sql.params().set("pub_date", pubDate);
+		dao.execute(sql);
+		List<StockComment> commentList = sql.getList(StockComment.class);
+		for(StockComment accuracy:commentsAccuracy){
+			for(StockComment comment: commentList){
+				if(accuracy.getAuthor().equals(comment.getAuthor())){
+					comment.setAccuracy(Integer.parseInt(accuracy.getCorrect()));
+				}
+			}
+		}
+		return commentList;
+	}
+	
+	/**
+	 * @Description 获取每个博主预测的准确率
+	 * @return List<StockComment>
+	 */
+	public List<StockComment> getCommentsAccuracy(){
+		String sqlString = "SELECT DISTINCT(T1.author) as author, ROUND(T1.correct / T2.total * 100, 0) as correct FROM"
+				+ " (SELECT author, ifnull(SUM(CAST(correct as SIGNED)),0) AS correct FROM stock_comments GROUP BY author) T1,"
+				+ " (SELECT author,count(*) AS total FROM stock_comments GROUP BY author) T2"
+				+ " WHERE T1.author = T2.author";
+		Sql sql = Sqls.queryEntity(sqlString);
+		sql.setEntity(dao.getEntity(StockComment.class));
+		dao.execute(sql);
+		return sql.getList(StockComment.class);
+	}
+	
+	/**
+	 * @Description 通过ID更新StockNews
+	 * @param String
+	 * @param String
+	 */
+	public void updateCommentsById(String id, String correct) {
+		Sql sql = Sqls.create("update stock_comments set correct=@correct where id = @id");
+		sql.params().set("correct", correct);
+		sql.params().set("id", id);
+		dao.execute(sql);
+	}
+}

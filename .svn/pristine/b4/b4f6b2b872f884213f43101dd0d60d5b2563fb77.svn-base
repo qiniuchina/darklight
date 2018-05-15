@@ -1,0 +1,276 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<!DOCTYPE html>
+<html>
+<head>
+<title>List Stock News</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport"
+	content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="stylesheet" type="text/css" href="http://cdn.bootcss.com/font-awesome/4.2.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="../css/common.css" />
+<link rel="stylesheet" href="../css/pullToRefresh.css" />
+<script src="../js/jquery-1.11.3.min.js"></script>
+<script src="../js/iscroll.js"></script>
+<script src="../js/pullToRefresh.js"></script>
+<style type="text/css" media="all">
+body, html {
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	font-family: Arial, Microsoft YaHei;
+	color: #111;
+}
+
+.scroller li {
+	height: 60px;
+	border-bottom: 1px solid #eee;
+	background-color: #fff;
+	font-size: 14px;
+}
+
+.pullDownLabel img {
+	width: 13px;
+	height: 13px;
+	margin-top: -1px;
+	vertical-align: -2px;
+	margin-right: 5px;
+}
+
+</style>
+</head>
+<body>
+<div class="base">
+	<div class="content">
+	<!--must content ul li,or shoupi-->
+	<div id="wrapper">
+		<ul>
+			<c:forEach items="${stockNewsList}" var="stockNews">
+			<li id = "<fmt:formatDate value="${stockNews.pubDate}" pattern="yyyy-MM-dd hh:mm" />,${stockNews.id}">				
+				<c:choose>
+				<c:when test="${sessionScope.user.userId!=null && sessionScope.user.userId==stockNews.userId}">
+				<i onclick="selectFavoriteNews()" class="fa fa-star" aria-hidden="true" style="color:#fec04e"></i>
+				</c:when>
+				<c:otherwise>
+				<i onclick="selectFavoriteNews()" class="fa fa-star-o" aria-hidden="true" ></i>
+				</c:otherwise>
+				</c:choose>
+				&nbsp;&nbsp;&nbsp;&nbsp; 
+				<a href = "${stockNews.newsLink}">${stockNews.title}</a> 
+				(<fmt:formatDate value="${stockNews.pubDate}" pattern="yyyy-MM-dd hh:mm" />)  
+				<i onclick="removeStockNews()" class="fa fa-trash-o" aria-hidden="true"></i>
+				<br>
+				(股票代码：${stockNews.stockCode} 利空关键词：${stockNews.keywords})
+			</li>
+			</c:forEach>
+		</ul>		
+	</div>
+	</div>
+<%@ include file="footer.jsp" %>
+</div>
+<script>
+var currUserId="${sessionScope.user.userId}"
+		//下拉下拉初始化
+		refresher.init({
+			id : "wrapper",//<------------------------------------------------------------------------------------┐
+			pullDownAction : refresh,
+			pullUpAction : load
+		});
+		
+		//上拉刷新新闻，加载所有最新更新的新闻
+		function refresh() {			
+			setTimeout(
+					function() { // <-- Simulate network congestion, remove setTimeout from production!
+						var el, li, newsId;
+						var allLi = $("#wrapper ul").children();
+						if(allLi!=null&&allLi.length>0){
+							newsId = allLi[0].getAttribute("id");
+						}
+						el = document.querySelector("#wrapper ul");
+						//这里写你的刷新代码
+						document.getElementById("wrapper").querySelector(
+								".pullDownIcon").style.display = "none";
+						document.getElementById("wrapper").querySelector(
+								".pullDownLabel").innerHTML = "<img src='../css/ok.png'/>刷新成功";
+						setTimeout(
+								function() {
+									$.ajax({
+										url : "/darklight/stocknews/refresh",
+										type : "get",
+										data: { id: newsId },
+										datatype : "json",
+										success : function(data) {
+											var li;
+											var jsonData = eval(data);
+											var refreshNewsList = jsonData.refreshNewsList;
+											$.each(refreshNewsList, function(index, item) {
+												//循环获取数据
+												var id = refreshNewsList[index].id;
+												var newsLink = refreshNewsList[index].newsLink;
+												var title = refreshNewsList[index].title;
+												var pubDate = refreshNewsList[index].pubDate;
+												var stockCode = refreshNewsList[index].stockCode;
+												var keywords = refreshNewsList[index].keywords;
+												var userId=refreshNewsList[index].userId;
+												li = document.createElement("li");
+												//为li标签设置id属性并赋值
+												li.setAttribute("id", timeStamp2String(pubDate)+","+id);
+												//拼接HTML代码
+												var favorNews="<i onclick='selectFavoriteNews()' class='fa fa-star-o' aria-hidden='true'></i>&nbsp&nbsp&nbsp&nbsp"
+												if(userId!=null&&userId==currUserId){
+														favorNews ="<i onclick='selectFavoriteNews()' class='fa fa-star' aria-hidden='true' style='color:#fec04e'></i>&nbsp&nbsp&nbsp&nbsp"
+													}
+												li.innerHTML = favorNews											
+												+"<a href = "+newsLink+">" + title
+												+ "</a>&nbsp(" + timeStamp2String(pubDate)+")<br>" 
+												+"<i onclick='removeStockNews()' class='fa fa-trash-o' aria-hidden='true'></i>"
+												+ "(股票代码：" + stockCode + "&nbsp&nbsp&nbsp" + "利空关键词：" + keywords+ ")";
+												if(newsId!=null){
+													el.insertBefore(li,el.childNodes[0]);
+												}else{
+													$("#wrapper ul").append(li);
+												}
+												
+											});
+										}
+									});
+									wrapper.refresh();
+									document.getElementById("wrapper")
+											.querySelector(".pullDownLabel").innerHTML = "";
+								}, 1000);//模拟qq下拉刷新显示成功效果
+						/****remember to refresh after  action completed！ ---yourId.refresh(); ----| ****/
+					}, 1000);
+		}
+		
+		//下拉加载更多新闻，每次10条
+		function load() {
+			var newsId;
+			var allLi = $("#wrapper ul").children();
+			if(allLi!=null&&allLi.length>0){
+				newsId = allLi[allLi.length-1].getAttribute("id");
+			}
+			setTimeout(
+					function() {// <-- Simulate network congestion, remove setTimeout from production!
+						$.ajax({
+							url : "/darklight/stocknews/more",
+							type : "get",
+							data: { id: newsId },
+							datatype : "json",
+							success : function(data) {
+								var li;
+								var jsonData = eval(data);
+								var moreNewsList = jsonData.moreNewsList;
+								$.each(moreNewsList, function(index, item) {
+									//循环获取数据
+									var id = moreNewsList[index].id;
+									var newsLink = moreNewsList[index].newsLink;
+									var title = moreNewsList[index].title;
+									var pubDate = moreNewsList[index].pubDate;
+									var stockCode = moreNewsList[index].stockCode;
+									var keywords = moreNewsList[index].keywords;
+									var userId=moreNewsList[index].userId;
+									li = document.createElement("li");
+									//为li标签设置id属性并赋值
+									li.setAttribute("id", timeStamp2String(pubDate)+","+id);
+									//拼接HTML代码
+									var favorNews="<i onclick='selectFavoriteNews()' class='fa fa-star-o' aria-hidden='true'></i>&nbsp&nbsp&nbsp&nbsp"
+										if(userId!=null&&userId==currUserId){
+												favorNews ="<i onclick='selectFavoriteNews()' class='fa fa-star' aria-hidden='true' style='color:#fec04e'></i>&nbsp&nbsp&nbsp&nbsp"
+											}
+										li.innerHTML = favorNews
+												+"<a href = "+newsLink+">" + title
+												+ "</a>&nbsp(" + timeStamp2String(pubDate)+")"
+												+"<i onclick='removeStockNews()' class='fa fa-trash-o' aria-hidden='true'></i><br>" 
+												+ "(股票代码：" + stockCode + "&nbsp&nbsp&nbsp" + "利空关键词：" + keywords+ ")";
+									$("#wrapper ul").append(li);
+								});
+							}
+						});
+						wrapper.refresh();
+						/****remember to refresh after action completed！！！   ---id.refresh(); --- ****/
+					}, 2000);
+		}
+		
+		//将timestap转换为date格式的string
+		function timeStamp2String(time) {
+			var datetime = new Date();
+			datetime.setTime(time);
+			var year = datetime.getFullYear();
+			var month = datetime.getMonth() + 1;
+			if (month < 10) {
+				month = "0" + month;
+			}
+			var date = datetime.getDate();
+			if (date < 10) {
+				date = "0" + date;
+			}
+			var hour = datetime.getHours();
+			if (hour < 10) {
+				hour = "0" + hour;
+			}
+			var minute = datetime.getMinutes();
+			if (minute < 10) {
+				minute = "0" + minute;
+			}
+			return year + "-" + month + "-" + date + " " + hour + ":" + minute;
+		};
+		
+		//移除不是利空消息的数据
+		function removeStockNews(){
+			//获取当前点击的li标签里id属性的值
+			var li = window.event.target.parentElement;
+			var id = li.id.split(",")[1];
+			li.parentNode.removeChild(li);	
+			$.ajax({
+					url : "/darklight/stocknews/remove",
+					type : "post",
+					data: { id: id },
+					datatype : "json"
+			});
+		}
+
+		//收藏或者删除利空消息
+		function selectFavoriteNews() {
+			var liId = window.event.target.parentElement.id;
+			var newsId = liId.split(",")[1];
+			var stockCode = window.event.target.parentElement.innerHTML.split("股票代码：")[1].split(" ")[0];
+			if(window.event.target.className=="fa fa-star-o"){
+				window.event.target.setAttribute("class", "fa fa-star");
+				window.event.target.setAttribute("style", "color:#fec04e");
+				$.ajax({
+					url : "/darklight/stocknews/collect",
+					type : "post",
+					data: { newsId: newsId, stockCode: stockCode },
+					datatype : "json"
+				});
+			}else{
+				window.event.target.setAttribute("class", "fa fa-star-o");
+				window.event.target.setAttribute("style", "");
+				$.ajax({
+					url : "/darklight/stocknews/cancel",
+					type : "post",
+					data: { newsId: newsId },
+					datatype : "json"
+				});
+			}
+		}
+		(function(doc, win) {
+			var docEl = doc.documentElement, resizeEvt = 'orientationchange' in window ? 'orientationchange'
+					: 'resize', recalc = function() {
+				var clientWidth = docEl.clientWidth;
+				if (!clientWidth)
+					return;
+				docEl.style.fontSize = 100 * (clientWidth / 750) + 'px';
+			};
+			if (!doc.addEventListener)
+				return;
+			win.addEventListener(resizeEvt, recalc, false);
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+</script>
+</body>
+</html>

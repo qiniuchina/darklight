@@ -1,0 +1,109 @@
+/**
+ * All rights Reserved
+ * @Title: 	PageProcessor.java 
+ * @Package com.dxc.darklight.spider 
+ * @Description: 	TODO
+ * @author:	 Wei Wei  
+ * @date:	Mar 14, 2017 4:11:08 PM 
+ * @version	V1.0   
+ */
+package com.dxc.darklight.spider;
+
+import java.text.ParseException;
+import java.util.Date;
+import java.util.Calendar;
+
+import org.apache.solr.client.solrj.SolrClient;
+
+import com.dxc.darklight.datasource.solr.SolrFactory;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.util.BadNewsFilterUtil;
+import com.dxc.darklight.util.DateUtils;
+
+/** 
+ * @ClassName:	PageProcessor 
+ * @Description:  处理下载下来的页面
+ * @author:	Wei Wei
+ * @date:	Mar 14, 2017 4:11:08 PM 
+ *  
+ */
+
+public class PageProcessor {
+	
+	/** 
+	 * @Title: getNewsPubDate 
+	 * @Description: 获取新闻发布时间
+	 * @param: Sting
+	 * @return: Date 
+	 * @throws ParseException
+	 */
+	public Date getNewsPubDate(String pubDate) throws ParseException {
+		String pubDateString= pubDate.replace("(", "").replace(")", "");
+		String monthString = pubDateString.split(" ")[0].split("月")[0];
+		String dayString = pubDateString.split(" ")[0].split("月")[1].split("日")[0];
+		String timeString = pubDateString.split(" ")[1];
+		int year = Calendar.getInstance().get(Calendar.YEAR);
+		String dateString = year+"-"+monthString+"-"+dayString+" "+timeString;
+		return DateUtils.parseMinuteTime(dateString);
+	}
+
+	
+	/** 
+	 * @Title: getNewsWeight 
+	 * @Description: 获取新闻权值
+	 * @param: String
+	 * @return: Integer 
+	 * @throws 
+	 */
+	public Integer getNewsWeight(String newsTitle){
+		return BadNewsFilterUtil.getInstance().isBadNews(newsTitle);
+	}
+	
+	/**  
+	 * @Title: saveNews
+	 * @Description: 存储新闻到MySQL和Solr
+	 * @param: StockNews 
+	 * @return: String
+	 * @throws Exception
+	 */
+	public void saveNews(StockNews stockNews) throws Exception {
+		//保存数据新闻信息到mysql
+		ServiceFactory.createStockNewsService().insertStockNews(stockNews);
+		//保存新闻信息到solr
+		SolrClient client = SolrFactory.getClient();
+		client.add(stockNews.toSolrInputDocument());
+		client.commit();
+		client.close();
+	}
+	
+	/**  
+	 * @Title: checkNewsExist
+	 * @Description: 检查一条新闻是否已经存储到mysql
+	 * @param: String 
+	 * @return: StockNews
+	 */
+	public StockNews checkNewsExist(String newsLink) {
+		//保存数据新闻信息到mysql
+		return ServiceFactory.createStockNewsService().queryByLink(newsLink);
+	}
+	
+	/**  
+	 * @Title: formatStockCode
+	 * @Description: 格式化股票代码
+	 * @param: String 
+	 * @return: String
+	 */
+	public String formatStockCode(String stockCode){
+		if(stockCode!=null && !"".equals(stockCode) && (!stockCode.startsWith("sh")||!stockCode.startsWith("sz"))){
+			String sc = stockCode.substring(stockCode.length()-6, stockCode.length());
+			if(sc.startsWith("6")){
+				stockCode = "sh" + sc;
+			}
+			if(sc.startsWith("0")||sc.startsWith("3")){
+				stockCode = "sz" + sc;
+			}
+		}
+		return stockCode;
+	}
+}

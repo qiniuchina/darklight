@@ -1,0 +1,36 @@
+package com.dxc.darklight.service.impl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.TopNewsStockDao;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.TopNewsStockService;
+
+@Service
+public class TopNewsStockImpl implements TopNewsStockService {
+
+	@Autowired
+	TopNewsStockDao dao;
+	
+	/**
+	 * 新增topnews
+	 * @param TopNewsStock
+	 * @return
+	 */
+	@Override
+	public void insertTopNewsStock(TopNewsStock topNewsStock) {
+		dao.insertTopNewsStock(topNewsStock);
+	}
+
+	/**
+	 * 通过新闻链接URL查找新闻
+	 * @param String
+	 * @return TopNewsStock
+	 */
+	@Override
+	public TopNewsStock queryTopNewsByLink(String newsLink) {
+		return dao.queryTopNewsByLink(newsLink);
+	}
+
+}

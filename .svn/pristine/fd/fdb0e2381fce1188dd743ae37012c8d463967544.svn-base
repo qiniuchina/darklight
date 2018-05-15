@@ -1,0 +1,240 @@
+package com.dxc.darklight.weixin.token;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.params.ConnRoutePNames;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+
+import com.dxc.darklight.conf.ConfFactory;
+import com.dxc.darklight.datasource.redis.RedisCache;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.weixin.App;
+import com.google.gson.Gson;
+
+
+/**
+ * https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=
+ * wx70dcebd7d3a2e6ff&secret=e563147fb11d7281f42485fe622b8501
+ * 
+ * @author lizhao
+ */
+public class TokenService {
+	
+	private static Log log = LogFactory.getLog(TokenService.class);
+	
+	private static final String GETTOKEN = "https://api.weixin.qq.com/cgi-bin/token";
+	
+	private static final String TOKEN_DATE_KEY = "lastdate";
+	
+	private static final String TOKEN_STR_KEY = "access_token";
+	
+	private static final String TOKEN_KEY = "wxtoken";
+	/*
+	 * 定时去更新token
+	 */
+	public static void newTokenForRedis(){
+		try{
+		Token gtoken =TokenService.generateNewTokenForRedis(App.APP_ID, App.APP_SECRET);
+		if(gtoken!=null){
+		log.info("cron create new token:"+gtoken.getTokenStr()+"-------"+gtoken.getDate());
+		}else
+		{
+			log.info("cron create new token failure!");
+		}
+		}catch(Exception ex){
+			ex.printStackTrace();
+		}
+	}
+	public static Token getTokenFromRedis()throws Exception{
+
+		Token token = TokenService.getRromRedis(App.APP_ID, App.APP_SECRET);
+		if(token == null){
+			Token gtoken = TokenService.generateNewTokenForRedis(App.APP_ID, App.APP_SECRET);
+			return gtoken;
+		}
+		else{
+			//统一在定时去更新token，不在每个业务点去做token检查，防止token冲突
+//			if(TokenService.isValid(token)){
+//				return token;
+//			}else{
+//				Token gtoken = TokenService.generateNewTokenForRedis(App.APP_ID, App.APP_SECRET);
+//				return gtoken;
+//			}
+			return token;
+		}
+	}
+	
+	
+	/**
+	 * 获取一个token
+	 * @return
+	 */
+	public static String getNewToken(String appid,String appsecret) {
+		HttpClient httpclient = new DefaultHttpClient();
+		HttpGet httpget = new HttpGet(GETTOKEN + "?grant_type=client_credential&appid=" + appid + "&secret=" + appsecret);
+		try {
+			String proxyHost = ConfFactory.getConf().get("http.proxy.host");
+			if (CommonUtil.notEmpty(proxyHost))
+			{
+				HttpHost proxy = new HttpHost(proxyHost,8080);    
+				httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy); 
+			}
+			URL u = new URL(GETTOKEN);
+			HttpHost host = new HttpHost(u.getHost(), u.getPort(), u.getProtocol());
+			HttpResponse response = httpclient.execute(host, httpget);
+			HttpEntity entity = response.getEntity();
+			/** 内容结果 */
+			byte[] contentBytes = EntityUtils.toByteArray(entity);
+			String content = new String(contentBytes, "utf-8");
+			return content;
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			httpget.abort();
+			httpclient.getConnectionManager().shutdown();
+		}
+		return null;
+	}
+	
+	public static Token generateNewTokenForRedis(String appId,String appsecret) throws Exception{
+		log.debug("generateNewToken - appId : " + appId + " appsecret : " + appsecret);
+		String tokenstr = TokenService.getNewToken(appId, appsecret);
+		Token token = strToNewToken(tokenstr);
+				
+		String resdisStr = tokenToStr(token);
+		if (CommonUtil.isEmpty(resdisStr)) {
+		    return token;
+        }
+		RedisCache rc = new RedisCache();
+		rc.hset(TOKEN_KEY, appId,resdisStr);
+		return token;
+	}
+	/**
+	 * 从redis中获取token
+	 * @param appId
+	 * @param appsecret
+	 * @return
+	 */
+	public static Token getRromRedis(String appId,String appsecret){
+		log.debug("getRromRedis - appId : " + appId + " appsecret : " + appsecret);
+		RedisCache rc = new RedisCache();
+		String tokenstr = rc.hget(TOKEN_KEY, appId);
+		if(tokenstr == null) return null;
+		Token token = jsonstrToToken(tokenstr);
+		return token;
+	}
+	
+	/**
+	 * 新token的json 没有获得时间，自生成时间
+	 * @param tokenstr token,json字符串
+	 * @return Token
+	 */
+	@SuppressWarnings("unchecked")
+	public static Token strToNewToken(String tokenstr){
+		Map<String,Object> map = new Gson().fromJson(tokenstr, Map.class);
+		if (map == null) {
+		    return null;
+		}
+		String tokenStr = (String)map.get(TOKEN_STR_KEY);
+		Date date = new Date();
+		map.put(TOKEN_DATE_KEY, date.getTime());
+		Token token = new Token();
+		token.setTokenStr(tokenStr);
+		token.setDate(date);
+		return token;
+	}
+	
+	/**
+	 * Token对象转换成json
+	 * @param token 
+	 * @return String
+	 */
+	public static String tokenToStr(Token token){
+	    if (token == null) { return null;}
+		Map<String,Object> map = new HashMap<String,Object>();
+		Date date = token.getDate();
+		String tokenStr = token.getTokenStr();
+		map.put(TOKEN_DATE_KEY, date.getTime());
+		map.put(TOKEN_STR_KEY, tokenStr);
+		String value = new Gson().toJson(map);
+		return value;
+	}
+	/**
+	 * token对象for mysql
+	 * @param tokenstr
+	 * @return Token对象
+	 */
+	@SuppressWarnings("unchecked")
+	public static Token strToToken(String tokenstr,Date tokDate){
+//		Map<String,Object> map = new Gson().fromJson(tokenstr, Map.class);
+//		String tokenStr = (String)map.get(TOKEN_STR_KEY);
+//		Double datetimedouble = (Double)map.get(TOKEN_DATE_KEY);
+//		long datetimelong = datetimedouble.longValue();
+		Token token = new Token();
+		token.setTokenStr(tokenstr);
+		token.setDate(tokDate);
+		return token;
+	}
+	/**
+	 * redis中的token的json转换成token对象
+	 * @param tokenstr
+	 * @return Token对象
+	 */
+	@SuppressWarnings("unchecked")
+	public static Token jsonstrToToken(String tokenstr){
+		Map<String,Object> map = new Gson().fromJson(tokenstr, Map.class);
+		String tokenStr = (String)map.get(TOKEN_STR_KEY);
+		Double datetimedouble = (Double)map.get(TOKEN_DATE_KEY);
+		long datetimelong = datetimedouble.longValue();
+		Token token = new Token();
+		token.setTokenStr(tokenStr);
+		token.setDate(new Date(datetimelong));
+		return token;
+	}
+	
+	/**
+	 * 
+	 * @param token
+	 * @return
+	 */
+	public static boolean isValid(Token token){
+		
+		if(token == null)return false;
+		Date date = token.getDate();
+		if(date == null) return false;
+		long datetime = date.getTime();
+		Date now = new Date();
+		long nowdatetime = now.getTime();
+		//生成时间的1小时50分钟后 大于当前时间说明未超时,未过期,有效
+		if(datetime+6600000 > nowdatetime){
+			log.debug("isValid : " + true);
+			return true;
+		}
+		//已过期
+		else{
+			log.debug("isValid : " + false);
+			return false;
+		}
+	}
+}

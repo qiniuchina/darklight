@@ -1,0 +1,94 @@
+package com.dxc.darklight.service.impl;
+
+import java.util.Date;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.TopNewsStockDao;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.TopNewsStockService;
+
+@Service
+public class TopNewsStockImpl implements TopNewsStockService {
+
+	@Autowired
+	TopNewsStockDao dao;
+
+	/**
+	 * 新增topnews
+	 * 
+	 * @param TopNewsStock
+	 * @return
+	 */
+	@Override
+	public void insertTopNewsStock(TopNewsStock topNewsStock) {
+		dao.insertTopNewsStock(topNewsStock);
+	}
+
+	/**
+	 * 通过新闻链接URL查找新闻
+	 * 
+	 * @param String
+	 * @return TopNewsStock
+	 */
+	@Override
+	public TopNewsStock queryTopNewsByLink(String newsLink) {
+		return dao.queryTopNewsByLink(newsLink);
+	}
+
+	/**
+	 * 获取所有的TopNews
+	 * 
+	 * @return List<TopNewsStock>
+	 */
+	@Override
+	public List<TopNewsStock> getAllTopNews() {
+		List<TopNewsStock> stocks = dao.getAllTopNews();
+		return stocks;
+	}
+
+	/**
+	 * 根据新闻Id更新flag字段
+	 * 
+	 * @param newId
+	 * @param flag
+	 * @return List<TopNewsStock>
+	 */
+	@Override
+	public void updateNewsById(String newsId, int flag) {
+		dao.updateNewsById(newsId, flag);
+	}
+
+	/**
+	 * 获取最新的新闻列表
+	 * @param
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<TopNewsStock> listTopNews() {
+		return dao.listTopNews();
+	}
+
+	/**
+	 * 获取更新的新闻列表
+	 * @param long,Date
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<TopNewsStock> refreshTopNews(long id, Date pubDate) {
+		return dao.refreshTopNews(id, pubDate);
+	}
+
+	/**
+	 * 获取历史的新闻列表
+	 * @param long,Date
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<TopNewsStock> listTopNewsHistory(long id, Date pubDate) {
+		return dao.listTopNewsHistory(id, pubDate);
+	}
+
+}

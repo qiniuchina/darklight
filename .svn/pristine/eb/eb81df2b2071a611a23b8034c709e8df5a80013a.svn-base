@@ -1,0 +1,11 @@
+package com.dxc.darklight.service;
+
+import com.dxc.darklight.model.IndustryInfo;
+import com.dxc.darklight.model.IndustryStocks;
+
+
+public interface IndustryInfoService {
+	
+	public int insertOrUpdateIndustryInfo(IndustryInfo industryInfo) throws Exception;
+	public void insertOrUpdateIndustryStocks(IndustryStocks industryStocks) throws Exception;
+}

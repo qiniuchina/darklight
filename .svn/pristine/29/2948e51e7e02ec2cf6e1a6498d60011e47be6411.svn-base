@@ -1,0 +1,81 @@
+package com.dxc.darklight.model;
+
+import java.sql.Timestamp;
+
+import org.nutz.dao.entity.annotation.Column;
+import org.nutz.dao.entity.annotation.PK;
+import org.nutz.dao.entity.annotation.Table;
+
+/**
+ * stock_current_price
+ * 
+ */
+@Table("stock_current_price")
+@PK( {"id"} )
+public class StockCurrentPrice{
+	@Column("id")
+	private Integer id;
+	@Column("stock_code")
+	private String stockCode;
+	@Column("stock_name")
+	private String stockName;
+	@Column("stock_price")
+	private Double stockPrice;
+	@Column("stock_updown_price")
+	private Double stockUpdownPrice;
+	@Column("stock_updown_percent")
+	private Double stockUpdownPercent;
+	@Column("stock_deal_mount")
+	private Integer stockDealMount;
+	@Column("create_dtm")
+	private Timestamp createDtm;
+	public Integer getId() {
+		return id;
+	}
+	public void setId(Integer id) {
+		this.id = id;
+	}
+	public String getStockCode() {
+		return stockCode;
+	}
+	public void setStockCode(String stockCode) {
+		this.stockCode = stockCode;
+	}
+	public String getStockName() {
+		return stockName;
+	}
+	public void setStockName(String stockName) {
+		this.stockName = stockName;
+	}
+	public Double getStockPrice() {
+		return stockPrice;
+	}
+	public void setStockPrice(Double stockPrice) {
+		this.stockPrice = stockPrice;
+	}
+	public Double getStockUpdownPrice() {
+		return stockUpdownPrice;
+	}
+	public void setStockUpdownPrice(Double stockUpdownPrice) {
+		this.stockUpdownPrice = stockUpdownPrice;
+	}
+	public Double getStockUpdownPercent() {
+		return stockUpdownPercent;
+	}
+	public void setStockUpdownPercent(Double stockUpdownPercent) {
+		this.stockUpdownPercent = stockUpdownPercent;
+	}
+	public Integer getStockDealMount() {
+		return stockDealMount;
+	}
+	public void setStockDealMount(Integer stockDealMount) {
+		this.stockDealMount = stockDealMount;
+	}
+	public Timestamp getCreateDtm() {
+		return createDtm;
+	}
+	public void setCreateDtm(Timestamp createDtm) {
+		this.createDtm = createDtm;
+	}
+	
+}

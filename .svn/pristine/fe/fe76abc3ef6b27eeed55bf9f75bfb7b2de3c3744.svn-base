@@ -1,0 +1,6 @@
+package com.dxc.darklight.service;
+
+public interface StockInfoService {
+	
+	public void processGetStocksInfo(String stockId, int passedDays) throws Exception;
+}

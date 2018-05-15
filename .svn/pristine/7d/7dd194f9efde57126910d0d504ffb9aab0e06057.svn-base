@@ -1,0 +1,78 @@
+package com.dxc.darklight.dao;
+
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.User;
+
+@Repository
+public class UserDao extends BaseDao {
+
+	private static final Logger log = LogManager.getLogger(UserDao.class);
+
+	
+	/**
+	 * 插入mysql
+	 * @param stockNews
+	 * @return
+	 * @throws Exception
+	 */
+	public String insertStockUser(User user){
+		dao.insert(user);
+		return "success";
+	}
+	
+	/**
+	 * Userid查询User
+	 * @param String
+	 * @return User
+	 */
+	public User getUserById(String userId){
+		Sql sql = Sqls.queryEntity(" select * from user where user_id = @userId");
+		
+		sql.setEntity(dao.getEntity(User.class));
+		sql.params().set("userId", userId);
+		dao.execute(sql);
+		List<User> uls=sql.getList(User.class);
+		if(uls==null||uls.size()==0) {
+			return null;
+		}else {
+			
+			return uls.get(0);
+		}
+	}
+	
+	/**
+	 * Userid查询User from happy database
+	 * @param String
+	 * @return User
+	 */
+	public User getHappyUserById(String userId){
+		Sql sql = Sqls.queryEntity(" select * from user where user_id = @userId");
+		
+		sql.setEntity(dao.getEntity(User.class));
+		sql.params().set("userId", userId);
+		dao.execute(sql);
+		List<User> uls=sql.getList(User.class);
+		if(uls==null||uls.size()==0) {
+			happyDao.execute(sql);
+			uls=sql.getList(User.class);
+			if(uls==null||uls.size()==0) {
+				return null;
+			} else {
+				User user = uls.get(0);
+				dao.insert(user);
+				return user;
+			}
+		}else {
+			
+			return uls.get(0);
+		}
+	}
+	
+}

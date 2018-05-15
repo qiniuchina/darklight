@@ -1,0 +1,136 @@
+package com.dxc.darklight.service.impl;
+
+import java.util.Date;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.StockNewsDao;
+import com.dxc.darklight.dao.UserDao;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.model.User;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.StockNewsService;
+import com.dxc.darklight.util.CommonUtil;
+
+@Service
+public class StockNewsServiceImpl extends BaseService implements StockNewsService {
+
+	private static final Logger log = LogManager.getLogger(StockNewsServiceImpl.class);
+
+	@Autowired
+	StockNewsDao dao;
+	@Autowired
+	UserDao userDao;
+
+	@Override
+	public StockNews queryByIdForSolr(String id)
+	{
+		return dao.queryByIdForSolr(id);
+	}
+	/**
+	 * 插入公司新闻到solr
+	 */
+	@Override
+	public void updateForSolr(StockNews stockNews)
+	{
+		dao.updateForSolr(stockNews);
+	}
+	
+	@Override
+	public int removeByIdForSolr(String id){
+		return dao.removeByIdForSolr(id);
+	}
+	/**
+	 * 插入公司新闻到mysql
+	 */
+	@Override
+	public String insertStockNews(StockNews stockNews) throws Exception{
+		return dao.insertStockNews(stockNews);
+	}
+	
+	/**
+	 * 通过链接URL查询新闻
+	 */
+	@Override
+	public StockNews queryByLink(String newsLink) {
+		return dao.queryStockNewsByLink(newsLink);
+	}
+	
+	/**
+	 * 获取最新的新闻列表
+	 * @param String
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<StockNews> listStockNews() {
+		return dao.listStockNews();
+	}
+	
+	/**
+	 * 获取更新的新闻列表
+	 * @param long
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<StockNews> refreshStockNews(long id,Date pubDate) {
+		return dao.refreshStockNews(id,pubDate);
+	}
+	
+	/**
+	 * 获取历史的新闻列表
+	 * @param long
+	 * @return List<StockNews>
+	 */
+	@Override
+	public List<StockNews> stockNewsHistoryList(long id,Date pubDate) {
+		return dao.stockNewsHistoryList(id,pubDate);
+	}
+	
+	/**
+	 * 更新新闻
+	 * @param String
+	 */
+	@Override
+	public void updateNewsFlagById(String id) {
+		dao.updateNewsFlagById(id);
+	}
+	
+	/**
+	 * Userid查询User
+	 * @param String
+	 */
+	@Override
+	public User getUserById(String userId) {
+		User user= dao.getUserById(userId);
+		if(user==null&&!CommonUtil.isEmpty(userId)){
+			user=userDao.getHappyUserById(userId);
+			userDao.insertStockUser(user);
+		}
+		return user;
+	}
+	
+	/**
+	 * 插入数据到user_stock_news
+	 * @param String
+	 * @param String
+	 * @param String
+	 */
+	@Override
+	public void saveFavoriteNews(String userId, String newsId, String stockCode) {
+		dao.insertUserStockNews(userId, newsId, stockCode);
+	}
+	
+	/**
+	 * 删除一条user_stock_news数据
+	 * @param String
+	 * @param String
+	 */
+	@Override
+	public void deleteFavoriteNews(String newsId, String userId) {
+		dao.deleteUserStockNewsByNewsId(newsId, userId);
+	}
+}

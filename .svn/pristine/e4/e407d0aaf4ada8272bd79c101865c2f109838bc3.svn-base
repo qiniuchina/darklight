@@ -1,0 +1,165 @@
+package com.dxc.darklight.spider;
+
+import java.util.Date;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jsoup.nodes.Document;
+
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.dxc.darklight.conf.ConfFactory;
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StockInfo;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+import com.dxc.darklight.util.DateUtils;
+import com.dxc.darklight.util.IdGeneratorUtil;
+
+/**
+ * @ClassName: FinanceNewsSpider
+ * @Description: Finace Related News
+ * @author: Wei Wei
+ * @date: Mar 14, 2017 4:04:35 PM
+ */
+public class FinanceNewsSpider implements Runnable {
+	private static final Logger log = LogManager
+			.getLogger(FinanceNewsSpider.class);
+	private static String TOP_NEWS_URL = null;
+	static {
+		// http://finance.sina.com.cn/topnews/20170329.html 往日新闻格式
+		TOP_NEWS_URL = ConfFactory.getConf().get("financeNewsEntry",
+				"http://finance.sina.com.cn/topnews/");
+		/**
+	        * 汇总榜-http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_0_suda&top_time=20170411&top_show_num=20&top_order=DESC&js_var=all_1_data&get_new=1
+	        * 新闻榜-http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_news_0_suda&top_time=20170411&get_new=1&top_show_num=20&top_order=DESC&js_var=all_1_data
+	        * 证券榜-http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_not_url=/ustock/&top_type=day&top_cat=finance_stock_conten_suda&top_time=20170411&top_show_num=20&top_order=DESC&get_new=1&js_var=stock_1_data
+	        * 理财榜-http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_money_suda&top_time=20170411&top_show_num=20&top_order=DESC&get_new=1&js_var=money_1_data
+	        */
+		
+	}
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		// 常规的日志信息， 异常信息处理等
+
+		// 获取热点新闻标题并进行分词
+		log.info("------------start top news URL:--------------");
+		log.info(TOP_NEWS_URL);
+		try {
+			Document doc = JsoupParse.getDocument(TOP_NEWS_URL, "GB2312", 1000);
+
+			String dynamic_URL = "http://top.finance.sina.com.cn/ws/GetTopDataList.php?top_type=day&top_cat=finance_money_suda&top_time=20170411&top_show_num=20&top_order=DESC&get_new=1&js_var=money_1_data";
+			log.info("start to visit the dynamic URL");
+			log.info(dynamic_URL);
+			Document dynamic_doc = JsoupParse.getDocument(dynamic_URL, "utf-8",
+					1000);
+			String jsonString = dynamic_doc.body().html().split("=")[1]
+					.toString();
+			JSONObject jsonObject = JSONObject.parseObject(jsonString
+					.substring(1, jsonString.length() - 1));
+			JSONArray jsonArray = jsonObject.getJSONArray("data");
+
+			// 获取数据库中已有黑天鹅事件的股票代码和股票名称，简称， 常用名
+			StockInfoService stockInfoService = ServiceFactory
+					.createStockInfoService();
+			List<StockInfo> stockInfos = stockInfoService.getAllStockInfo();
+			for (int i = 0; i < jsonArray.size(); i++) {
+				TopNewsStock topNewsStock = new TopNewsStock();
+				topNewsStock.setFetchDate(new Date()); // today
+				topNewsStock.setId(IdGeneratorUtil.getId());// id
+				topNewsStock.setMedia(jsonArray.getJSONObject(i).get("media")
+						.toString());
+				topNewsStock.setNewsLink(jsonArray.getJSONObject(i).get("url")
+						.toString());
+				topNewsStock.setPubDate(DateUtils.parsecommonFormat(jsonArray
+						.getJSONObject(i).get("create_date").toString()));
+				String topNewsTitle = jsonArray.getJSONObject(i).get("title")
+						.toString();
+				topNewsStock.setTitle(topNewsTitle);
+				log.info(topNewsTitle);
+				for (int j = 0; j < stockInfos.size(); j++) {
+					StockInfo stockInfo = stockInfos.get(j);
+					if (newsMatch(stockInfo, topNewsTitle)) {
+						log.info("匹配成功");
+						topNewsStock.setStockCode(stockInfo.getStockCode());
+						saveTopNews(topNewsStock);
+					} else {
+						// do nothing;
+					}
+				}
+
+				log.info("--------------" + "这是分割线" + "--------------");
+			}
+			Thread.sleep(1000 * 60 * 2);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// 热点新闻和股票名称，简称，常用名进行关联
+
+		// 把找到的关联新闻存入数据库和Solr
+		log.info("stop stop new URL");
+	}
+
+	/**
+	 * 判断热点新闻是否和股票代码关联的判断函数
+	 * 
+	 * @param stockCode
+	 * @param topNewsTitle
+	 * @return
+	 */
+	public boolean newsMatch(StockInfo stockInfo, String topNewsTitle) {
+		String stockName = stockInfo.getStockName();
+		stockName = stockName.replaceAll("股份", "");
+		stockName = stockName.replace("*ST", "");
+		stockName = stockName.replace("ST", "");
+		stockName = stockName.replace("集团", "");
+		if (stockInfo.getStockName() != null
+				&& topNewsTitle.contains(stockName))
+			return true;
+		if ((stockInfo.getShortName() != null)
+				&& topNewsTitle.contains(stockInfo.getShortName()))
+			return true;
+		String keywords = stockInfo.getKeyWords();
+		if (keywords != null) {
+			String[] keywords_list = keywords.split(";");
+			for (int i = 0; i < keywords_list.length; i++) {
+				if (topNewsTitle.contains(keywords_list[i]))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @author zhliu
+	 * @param topNewsStock
+	 * @throws Exception
+	 * @date April 07, 2017
+	 */
+	public void saveTopNews(TopNewsStock topNewsStock) throws Exception {
+
+		// 保存数据新闻信息到mysql
+		ServiceFactory.createTopNewsStockService().insertTopNewsStock(
+				topNewsStock);
+		// 保存新闻信息到solr
+		/*
+		 * SolrClient client = SolrFactory.getClient();
+		 * client.add(stockNews.toSolrInputDocument()); client.commit();
+		 * client.close();
+		 */
+	}
+
+	public static void work() {
+		new Thread(new FinanceNewsSpider()).start();
+	}
+
+	public static void main(String[] args) throws Exception {
+		work();
+	}
+
+}

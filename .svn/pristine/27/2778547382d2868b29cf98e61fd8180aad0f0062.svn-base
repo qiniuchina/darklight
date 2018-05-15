@@ -1,0 +1,113 @@
+package com.dxc.darklight.spider;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+
+import com.dxc.darklight.model.BaseStocks;
+import com.dxc.darklight.model.StocksInfoEntity;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+import com.dxc.darklight.util.CommonUtil;
+
+public class FastDropStocksModel {
+	
+	public static void work() {
+		//////////////////////////////
+		//
+		//这个模型是在本地跑的，不用部署到阿里云上面去
+		//
+		//////////////////////////////
+		Calendar cal = Calendar.getInstance();
+		if(cal.get(Calendar.DAY_OF_WEEK)==Calendar.SATURDAY||cal.get(Calendar.DAY_OF_WEEK)==Calendar.SUNDAY)
+		{
+			System.out.println("此时间段不是交易时间!");
+			return;
+		}
+		
+		StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+		List<BaseStocks> baseStocks = stockInfoService.getAllBaseStocks();
+		if(baseStocks==null || baseStocks.size()<=0)
+		{
+			return;
+		}
+		String begin = null, end = null;
+		SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd");
+		end = sf.format(cal.getTime());
+		cal.add(Calendar.DATE, -30);
+		begin = sf.format(cal.getTime());
+		
+		//定义变量
+		List<HashMap<String, Object>> data = new ArrayList<HashMap<String, Object>>();
+		HashMap<String, Object> hMap = null;
+		for(int i=0; i<baseStocks.size(); i++)
+		{
+			hMap = new HashMap<String, Object>();
+			BaseStocks sn = baseStocks.get(i);
+			String stockCd = sn.getStockCode();
+			hMap.put("stock_code", sn.getStockCode());
+			hMap.put("stock_name", sn.getStockName());
+			if(stockCd!=null)
+			{
+				try
+				{
+					List<StocksInfoEntity> dealInfo = CommonUtil.getStockDealInfo(stockCd, begin, end, false);
+					//计算交易量的模型
+					if(dealInfo!=null && dealInfo.size()>=15)
+					{
+						double upDownPercent = 0f;
+						for(StocksInfoEntity sen : dealInfo)
+						{
+							if(sen != null)
+							{
+								upDownPercent += sen.getUpDownMoneyPercent();
+							}
+						}
+						
+						hMap.put("stock_percent", upDownPercent);
+						data.add(hMap);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		//排序，从低到高的排序
+		int size = data.size();
+		for(int i=0; i<size; i++)
+		{
+			for(int j=i; j<size; j++)
+			{
+				HashMap<String, Object> hmi = data.get(i);
+				double di = (double)hmi.get("stock_percent");
+				HashMap<String, Object> hmj = data.get(j);
+				double dj = (double)hmj.get("stock_percent");
+				if(dj < di)
+				{
+					data.set(i, hmj);
+					data.set(j, hmi);
+				}
+			}
+		}
+		
+		//打印跌的最厉害的10只股票
+		for(int i=0; i<10; i++)
+		{
+			HashMap<String, Object> hm = data.get(i);
+			String stockCode = (String)hm.get("stock_code");
+			String stockName = (String)hm.get("stock_name");
+			double percent = (double)hm.get("stock_percent");
+			System.out.println("股票名称:"+stockName+"\t股票代码:"+stockCode+"\t涨跌幅:"+percent);
+		}
+		
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		work();
+	}
+
+}

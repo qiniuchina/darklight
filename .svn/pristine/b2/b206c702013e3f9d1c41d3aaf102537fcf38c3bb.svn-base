@@ -1,0 +1,8 @@
+package com.dxc.darklight.service;
+
+public interface StockInfoService {
+	
+	public void processGetStocksInfo(String stockId, int passedDays) throws Exception;
+	public double getMonutofStandardDeviation(int days) throws Exception;
+	public double allSpotCheck(int count, int length)throws Exception;
+}

@@ -1,0 +1,39 @@
+package com.dxc.darklight.util;
+
+public class DoubleUtil {
+	/**
+	 * 获得一个double数值的 在允许上下浮动固定数值范围内的数组
+	 * @param doubleValue 原始值
+	 * @param numerical 允许上下浮动的数值 ±x
+	 * @return double[] double[0] 最小值 double[1] 最大值
+	 */
+	public static double[] doubleUpDownByNumerical(double doubleValue,double numerical){
+		double up = doubleValue + numerical;
+		double down = doubleValue - numerical;
+		double[] array = new double[2];
+		array[0] = down;
+		array[1] = up;
+		return array;
+	}
+	/**
+	 * 获得一个double数值的 在允许上下浮动百分比范围内的数组
+	 * @param doubleValue 原始值
+	 * @param percentage 允许上下浮动的百分比 0.8 or 1.2 or ...
+	 * @return double[] double[0] 最小值 double[1] 最大值
+	 */
+	public static double[] doubleUpDwonByPercentage(double doubleValue,double percentage){
+		double up = doubleValue*(1+percentage);
+		double down = doubleValue*(1-percentage);
+		double[] array = new double[2];
+		array[0] = down;
+		array[1] = up;
+		return array;
+	}
+	
+	public static void main(String[] args) {
+		double[] doubleUpDown = doubleUpDownByNumerical(0, 0);
+		System.out.println(doubleUpDown[0]+"-"+doubleUpDown[1]);
+		double[] doubleUpDown2 = doubleUpDwonByPercentage(0, 0);
+		System.out.println(doubleUpDown2[0]+"-"+doubleUpDown2[1]);
+	}
+}

@@ -1,0 +1,116 @@
+/**
+ * All rights Reserved
+ * @Title: 	BadNewsFilterUtil.java 
+ * @Package com.dxc.darklight.util 
+ * @Description: 	TODO
+ * @author:	 wwei4  
+ * @date:	Mar 16, 2017 3:35:09 PM 
+ * @version	V1.0   
+ */
+package com.dxc.darklight.util;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.dxc.darklight.conf.ConfFactory;
+import com.hankcs.hanlp.algoritm.ahocorasick.trie.Token;
+import com.hankcs.hanlp.algoritm.ahocorasick.trie.Trie;
+
+
+/** 
+ * @ClassName:	BadNewsFilterUtil 
+ * @Description: 基于HanLP（http://hanlp.linrunsoft.com/）分词提供的AhoCorasick算法+Trie树实现的关键词过滤算法，判断一条新闻是否属于利空新闻。 
+ * @author:	wwei4
+ * @date:	Mar 16, 2017 3:35:09 PM 
+ *  
+ */
+public class BadNewsFilterUtil {
+	
+	private static BadNewsFilterUtil instance = new BadNewsFilterUtil();
+	
+	private static final Logger log = LogManager.getLogger(BadNewsFilterUtil.class);
+	
+	/** 利空关键词文件 */
+	private static final String FILE_BADNEWS_KEYWORDS = "badnews-keywords.txt";
+	/** 保存利空关键词和得分的对应关系 */
+	private static HashMap<String, Integer> mapKeywords;
+	/** AhoCorasick算法+Trie树实现的关键词过滤算法类，来自HanLP开源分词项目 */
+	private  static Trie trie;
+	
+	static{
+		mapKeywords = new HashMap<String, Integer>();
+		trie = new Trie();
+//		String filename = ConfFactory.getConf().get("business.rule.path") + File.separator + FILE_BADNEWS_KEYWORDS;
+		String filename = "src\\main\\resources\\stockstopwords.txt";
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(filename));
+			String line = br.readLine();
+			while (null != line) {
+				if(!line.startsWith("#")) {
+					String[] array = line.split("=");
+					int value = 1;
+					if (array.length > 1) {
+						try {
+							value = Integer.parseInt(array[1]);
+							//保存全局关键词和得分的映射关系
+							mapKeywords.put(array[0], value);
+							//添加全局关键词
+							trie.addKeyword(array[0]);
+//							System.out.println(array[1]);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				}
+				
+				line = br.readLine();
+			}
+			br.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public static BadNewsFilterUtil getInstance() {
+		return instance;
+	}
+	/**
+	 * 根据输入的字符串，判断这条新闻是否是利空新闻
+	 * @param text 一般是新闻标题
+	 * @return 利空权重
+	 */
+	public Integer isBadNews(String text) {
+		Collection<Token> tokens = trie.tokenize(text);
+		int score = 0;
+		Set<String> set = new HashSet<String>();
+		//过滤重复词
+		for(Token token : tokens) {
+			if(token.isMatch()) set.add(token.getFragment());
+		}
+		for(String key : set) {
+			log.debug("badnews keyword : " + key);
+			if(mapKeywords.containsKey(key)) {
+				score += mapKeywords.get(key);
+//				if(score >= 0) return score;
+			}
+		}
+		return score;
+	}
+
+	public static void main(String[] args) {
+		String string = "业绩恶化业绩恶化银行利率调高";
+		System.out.println(BadNewsFilterUtil.getInstance().isBadNews(string));
+	}
+
+}

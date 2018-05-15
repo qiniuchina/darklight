@@ -1,0 +1,98 @@
+package com.dxc.darklight.spider;
+
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Map;
+
+import com.dxc.darklight.model.IndustryStocks;
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+
+public class StockDealMountSpider {
+
+	/**
+	 * 计算股票的交易量权值
+	 */
+	public static void work() {
+
+			StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+			List<StockNews> stocknews = stockInfoService.getAllStockNews();
+			if(stocknews==null || stocknews.size()<=0)
+			{
+				return;
+			}
+			String begin = null, end = null;
+			SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd");
+			Calendar cal = Calendar.getInstance();
+			end = sf.format(cal.getTime());
+			cal.add(Calendar.DATE, -150);
+			begin = sf.format(cal.getTime());
+			StockModelMount sm = null;
+			for(int i=0; i<stocknews.size(); i++)
+			{
+				StockNews sn = stocknews.get(i);
+				String stockCd = sn.getStockCode();
+				if(stockCd!=null && (stockCd.startsWith("sz") || stockCd.startsWith("sh")))
+				{
+					try
+					{
+						stockInfoService.clearDataSet();
+						stockCd = stockCd.substring(2);
+						stockInfoService.processGetStocksInfo(stockCd, begin, end);
+						//Map<String, Double> temp = stockInfoService.allSpotCheck(20, 10);
+						Map<String, Double> temp = stockInfoService.getMountAndPriceMedian(21);
+						double avgMount = 0;
+						double avgPrice = 0;
+						double rev = -1;
+						if(temp!=null)
+						{
+							avgMount = temp.get("totalmount");
+							avgPrice = temp.get("totalprice");
+							if(stockInfoService.checkMonutAndPrice(avgMount*0.618, avgPrice * 0.618, 5))
+							{
+								rev = stockInfoService.computeLevel(avgMount*0.618, 5);
+							}	
+						}									
+						sm = new StockModelMount();
+						sm.setStockCode(stockCd);	
+						sm.setAvgPrice(avgPrice * 0.618);
+						SimpleDateFormat sfDate = new SimpleDateFormat("yyyy-MM-dd");
+						Calendar calDate = Calendar.getInstance();
+						String stockDate = sfDate.format(calDate.getTime());
+						sm.setStockDate(stockDate);					
+						sm.setAvgMount(avgMount*0.618);
+						sm.setAvgWeight(rev);
+						sm.setCreateDtm(new Timestamp(System.currentTimeMillis()));
+						stockInfoService.saveAndUpateMount(sm);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		work();
+		/*StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+		stockInfoService.clearDataSet();
+		stockInfoService.processGetStocksInfo("300104", "20161121", "20170327");
+		//Map<String, Double> temp = stockInfoService.allSpotCheck(20, 10);
+		Map<String, Double> temp = stockInfoService.getMountAndPriceMedian(21);
+		double avgMount = temp.get("totalmount");
+		double avgPrice = temp.get("totalprice");
+		System.out.println("平均价位:"+temp.get("totalprice"));
+		double rev = stockInfoService.computeLevel(avgMount*0.618, 5);
+		boolean b = stockInfoService.checkMonutAndPrice(avgMount*0.618, avgPrice, 5);
+		System.out.println("抽样平均:"+avgMount);
+		System.out.println("抽样平均*0.618:"+avgMount*0.618);
+		System.out.println("TRUE/FALSE:"+b);
+		System.out.println("权重:"+rev);*/
+	}
+
+}

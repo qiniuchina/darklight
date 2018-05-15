@@ -1,0 +1,73 @@
+package com.dxc.darklight.service;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.dxc.darklight.spider.FinanceNewsSpider;
+import com.dxc.darklight.spider.IndividualStockNewsSpide;
+import com.dxc.darklight.spider.UpdateAllStocksInfoSpider;
+import com.dxc.darklight.spider.SendPriceMsgAfterStockClosed;
+import com.dxc.darklight.spider.SendExceptionNoticeMsg;
+import com.dxc.darklight.spider.DealMountModel;
+
+public class ServiceFactory {
+	private static final Logger log = LogManager
+			.getLogger(ServiceFactory.class);
+
+	private static ApplicationContext appContext = new ClassPathXmlApplicationContext(
+			"spring-servlet.xml");
+
+	public static StockInfoService createStockInfoService() {
+		return appContext.getBean(StockInfoService.class);
+	}
+
+	public static TopNewsStockService createTopNewsStockService() {
+		return appContext.getBean(TopNewsStockService.class);
+	}
+	
+	public static DealMountModelService createDealMountModelService() {
+		return appContext.getBean(DealMountModelService.class);
+	}
+
+	public static DealMountModelService createStockModelMountService() {
+		return appContext.getBean(DealMountModelService.class);
+	}
+
+	public static IndividualStockNewsService createIndiStockNewsService() {
+		return appContext.getBean(IndividualStockNewsService.class);
+	}
+
+	public static DealMountModelService createUserStockModelService() {
+		return appContext.getBean(DealMountModelService.class);
+	}
+
+	public static BlackStockService createBlackStockService() {
+		return appContext.getBean(BlackStockService.class);
+	}
+	
+	public static UserStockService createUserStockService(){
+		return appContext.getBean(UserStockService.class);
+	}
+
+	public static void main(String[] args) {
+		String function = args[0];
+		log.info("Function=" + function);
+		if ("DealMountModel".equals(function)) {
+			DealMountModel.work();
+		} else if ("SendExceptionNoticeMsg".equals(function)) {
+			SendExceptionNoticeMsg.work();
+		} else if ("SendPriceMsgAfterStockClosed".equals(function)) {
+			SendPriceMsgAfterStockClosed.work();
+		} else if ("FinanceNewsSpider".equals(function)) {
+			FinanceNewsSpider.work();
+		} else if ("IndividualStockNewsSpide".equals(function)) {
+			IndividualStockNewsSpide.work();
+		}else if ("UpdateAllStockInfo".equals(function)) {
+			//获取A股全部的股票信息，每天晚上5点跑一次
+			UpdateAllStocksInfoSpider.work();
+		}
+
+	}
+}

@@ -1,0 +1,154 @@
+package com.dxc.darklight.spider;
+
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Map;
+
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.StockInfoService;
+import com.dxc.darklight.service.StockNewsService;
+
+public class StockDealMountSpider {
+
+	/**
+	 * 计算股票的交易量权值
+	 */
+	/*没有计算结果阶段*/
+	private static int FAST_ERROR_PHASE = -1;
+	
+	/*快速下跌阶段*/
+	private static int FAST_DROP_PHASE = 0;
+	
+	/*震荡阶段*/
+	private static int FAST_SHOCK_PHASE = 1;
+	
+	/*平稳阶段*/
+	private static int FAST_STABLE_PHASE = 2;
+	
+	public static void work() {
+
+			//排除周末两天的批处理
+			Calendar cal = Calendar.getInstance();
+			if(cal.get(Calendar.DAY_OF_WEEK)==Calendar.SATURDAY||cal.get(Calendar.DAY_OF_WEEK)==Calendar.SUNDAY)
+			{
+				System.out.println("此时间段不是交易时间!");
+				return;
+			}
+			
+			StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+			StockNewsService stockNewsService = ServiceFactory.createStockNewsService();
+			List<StockNews> stocknews = stockInfoService.getAllStockNews();
+			if(stocknews==null || stocknews.size()<=0)
+			{
+				return;
+			}
+			String begin = null, end = null;
+			SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd");
+			end = sf.format(cal.getTime());
+			cal.add(Calendar.DATE, -200);
+			begin = sf.format(cal.getTime());
+			StockModelMount sm = null;
+			for(int i=0; i<stocknews.size(); i++)
+			{
+				StockNews sn = stocknews.get(i);
+				String stockCd = sn.getStockCode();
+				if(stockCd!=null && (stockCd.startsWith("sz") || stockCd.startsWith("sh")))
+				{
+					try
+					{
+						stockInfoService.clearDataSet();
+						stockCd = stockCd.substring(2);
+						stockInfoService.processGetStocksInfo(stockCd, begin, end);						
+						//Map<String, Double> temp = stockInfoService.allSpotCheck(20, 10);
+						Map<String, Double> temp = stockInfoService.getMountAndPriceMedian(11);
+						double avgMount = 0;
+						double avgPrice = 0;
+						int flagPhase = FAST_ERROR_PHASE;
+						double rev = -1;
+						if(temp!=null)
+						{
+							avgMount = temp.get("totalmount");
+							avgPrice = temp.get("totalprice");
+							rev = stockInfoService.computeLevel(avgMount*0.618, 5);
+							
+							//达到了股票的平稳阶段
+							if(stockInfoService.checkMonutAndPrice(avgMount*0.618, avgPrice * 0.618, 5))
+							{
+								flagPhase = FAST_STABLE_PHASE;
+							}
+							else
+							{
+								//累加最近5天的涨跌幅，如果涨跌幅达到了-10%则判断为极速下降的阶段
+								double revFlage = stockInfoService.getDropPercentByDays(5);
+								if(revFlage == -1)
+								{
+									flagPhase = FAST_ERROR_PHASE;
+									rev = -1;
+								}
+								else if(revFlage <= -10)
+								{
+									flagPhase = FAST_DROP_PHASE;
+								}
+								else
+								{
+									flagPhase = FAST_SHOCK_PHASE;
+								}
+							}
+						}
+						sm = new StockModelMount();
+						sm.setStockCode(stockCd);	
+						sm.setAvgPrice(avgPrice * 0.618);
+						SimpleDateFormat sfDate = new SimpleDateFormat("yyyy-MM-dd");
+						Calendar calDate = Calendar.getInstance();
+						String stockDate = sfDate.format(calDate.getTime());
+						sm.setStockDate(stockDate);
+						sm.setFlagPhase(flagPhase);
+						sm.setAvgMount(avgMount*0.618);
+						sm.setAvgWeight(rev);
+						sm.setCreateDtm(new Timestamp(System.currentTimeMillis()));
+						//价格波动维度计算 add by fei
+						Boolean wave=stockInfoService.stockPriceWave();
+						if(wave){
+						sm.setPriceWave("Y");
+						}else{
+						sm.setPriceWave("N");
+						//更新新闻列表flag=2， 代表这只股票的价格跌幅没有达到设定值
+						stockNewsService.updateNewsFlagById(sn.getId(), 2);
+						}
+						stockInfoService.saveAndUpateMount(sm);
+						
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		//work();
+		StockInfoService stockInfoService = ServiceFactory.createStockInfoService();
+		stockInfoService.clearDataSet();
+		stockInfoService.processGetStocksInfo("000401", "20161121", "20170421");
+		//Map<String, Double> temp = stockInfoService.allSpotCheck(20, 10);
+//		Map<String, Double> temp = stockInfoService.getMountAndPriceMedian(21);
+//		double avgMount = temp.get("totalmount");
+//		double avgPrice = temp.get("totalprice");
+//		double rev = stockInfoService.computeLevel(avgMount*0.618, 5);
+//		boolean b = stockInfoService.checkMonutAndPrice(avgMount*0.618, avgPrice * 0.618, 5);
+//		System.out.println("抽样平均交易量:"+avgMount);
+//		System.out.println("抽样平均交易量*0.618:"+avgMount*0.618);
+//		System.out.println("抽样平均涨幅:"+avgPrice);
+//		System.out.println("抽样平均涨幅*0.618:"+avgPrice*0.618);
+//		System.out.println("TRUE/FALSE:"+b);
+//		System.out.println("量比:"+rev);
+		Boolean wave=stockInfoService.stockPriceWave();
+		System.out.println("wave="+wave);
+	}
+
+}

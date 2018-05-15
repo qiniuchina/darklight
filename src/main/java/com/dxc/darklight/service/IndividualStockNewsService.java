@@ -1,0 +1,25 @@
+package com.dxc.darklight.service;
+
+import java.util.Date;
+import java.util.List;
+
+import com.dxc.darklight.model.IndividualStockNews;
+
+public interface IndividualStockNewsService {
+	
+	public void insertIndividualStockNews(IndividualStockNews stockNews);
+
+	public Date getNewestDate(String stockCd);
+
+	public boolean isSingleUrl(String newsLink);
+
+	public List<IndividualStockNews> listIndiStockNews(String stockCode);
+
+	public List<IndividualStockNews> refreshIndiStockNews(long parseLong, Date pubDate, String stockCode);
+
+	public List<IndividualStockNews> stockNewsHistoryList(long parseLong, Date pubDate, String stockCode);
+
+	public List<String> getAllStockCodes();
+
+
+}

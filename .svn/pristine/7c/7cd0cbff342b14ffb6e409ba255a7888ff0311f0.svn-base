@@ -1,0 +1,23 @@
+package com.dxc.darklight.service.impl;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.StockModelMountDao;
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.service.StockModelMountService;
+
+@Service
+public class StockModelMountServiceImpl implements StockModelMountService {
+	
+	@Autowired
+	StockModelMountDao stockModelMountDao;
+
+	//web
+	@Override
+	public List<StockModelMount> getStockModelMountList(String userId){
+		return stockModelMountDao.getStockModelMountList(userId);
+	}
+}

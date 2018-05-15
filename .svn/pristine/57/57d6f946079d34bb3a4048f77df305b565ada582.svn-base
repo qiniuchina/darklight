@@ -1,0 +1,123 @@
+package com.dxc.darklight.control;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.json.MappingJackson2JsonView;
+
+import com.dxc.darklight.model.StockComment;
+import com.dxc.darklight.service.StockCommentService;
+import com.dxc.darklight.service.UserService;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+import com.dxc.darklight.weixin.token.TokenWeb;
+import com.dxc.darklight.weixin.token.TokenWebService;
+
+@Controller
+@RequestMapping("/comments")
+public class StockCommentController {
+
+	@Autowired
+	StockCommentService stockCommentService;
+	
+	@Autowired
+	UserService userService;
+	
+	/**	
+	 * @Description 显示大盘综述列表
+	 * @param String,HttpSession
+	 * @return ModelAndView
+	 */
+	@RequestMapping(value = "/list", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView listStockComment(String userId, HttpSession httpSession) {
+		ModelAndView mv = null;
+		if (!CommonUtil.isEmpty(userId)) {
+			httpSession.setAttribute("user", userService.getUserById(userId));
+			List<StockComment> commentsList = stockCommentService.listStockComments();
+			Map<String, Object> data = new HashMap<String, Object>();
+			data.put("commentsList", commentsList);
+			mv = new ModelAndView("comments", data);
+		}else{
+			return  new ModelAndView("index", null);
+		}
+		return mv;
+	}
+	
+	/**	
+	 * @Description 显示大盘综述列表
+	 * @param String,HttpSession
+	 * @return ModelAndView
+	 */
+	@RequestMapping(value = "/listwx", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView listStockCommentWx(String code, HttpSession httpSession) {
+		ModelAndView mv = null;
+		TokenWeb tokenweb = TokenWebService.getNewTokenWebObject(code);
+		String userId = tokenweb.getOpenId();
+		if (!CommonUtil.isEmpty(userId)) {
+			httpSession.setAttribute("user", userService.getUserById(userId));
+			List<StockComment> commentsList = stockCommentService.listStockComments();
+			Map<String, Object> data = new HashMap<String, Object>();
+			data.put("commentsList", commentsList);
+			mv = new ModelAndView("comments", data);
+		}else{
+			return  new ModelAndView("index", null);
+		}
+		return mv;
+	}
+	
+	/**
+	 * @Description 刷新大盘综述列表
+	 * @param String
+	 * @return ModelAndView
+	 * @throws Exception 
+	 */
+	@RequestMapping(value = "/refresh", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView refreshStockComment(String id) throws Exception {
+		List<StockComment> list = null;
+		Date pubDate = DateUtils.parseMinuteTime(id.split(",")[0]);
+		list = stockCommentService.refreshStockComments(pubDate);
+		Map<String, Object> data = new HashMap<String, Object>();		
+		data.put("refreshCommentsList", list);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+	
+	/**
+	 * @Description 历史大盘综述列表
+	 * @param String
+	 * @return ModelAndView
+	 */
+	@RequestMapping(value = "/more", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView moreStockComment(String id) throws Exception {
+		List<StockComment> list = null;
+		Date pubDate = DateUtils.parseMinuteTime(id.split(",")[0]);
+		list = stockCommentService.listStockCommentsHistory(pubDate);
+		Map<String, Object> data = new HashMap<String, Object>();		
+		data.put("moreCommentsList", list);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+	
+	/**
+	 * @Description 审核股评是否准确
+	 * @param String
+	 * @return ModelAndView
+	 */
+	@RequestMapping(value = "/review", method = { RequestMethod.GET, RequestMethod.POST })
+	public ModelAndView reviewStockComment(String id, String correct) throws Exception {
+		stockCommentService.updateCommentById(id, correct);
+		Map<String, Object> data = new HashMap<String, Object>();		
+		data.put("result", 1);
+		ModelAndView mv = new ModelAndView(new MappingJackson2JsonView(), data);
+		return mv;
+	}
+}

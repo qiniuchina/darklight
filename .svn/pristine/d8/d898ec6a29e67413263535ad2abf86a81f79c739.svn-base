@@ -1,0 +1,93 @@
+package com.dxc.darklight.model;
+
+public class StocksInfoEntity {
+
+	private String dateStr;
+	private double lastPrice;
+	private double upDownPrice;
+	private double prePrice;
+	private double openPrice;
+	private double highPrice;
+	private double lowPrice;
+	private double dealMount;
+	private double dealMoney;
+
+	public double getLastPrice() {
+		return lastPrice;
+	}
+
+	public void setLastPrice(double lastPrice) {
+		this.lastPrice = lastPrice;
+	}
+
+	public double getUpDownPrice() {
+		return upDownPrice;
+	}
+
+	public void setUpDownPrice(double upDownPrice) {
+		this.upDownPrice = upDownPrice;
+	}
+
+	public double getPrePrice() {
+		return prePrice;
+	}
+
+	public void setPrePrice(double prePrice) {
+		this.prePrice = prePrice;
+	}
+
+	public double getOpenPrice() {
+		return openPrice;
+	}
+
+	public void setOpenPrice(double openPrice) {
+		this.openPrice = openPrice;
+	}
+
+	public double getHighPrice() {
+		return highPrice;
+	}
+
+	public void setHighPrice(double highPrice) {
+		this.highPrice = highPrice;
+	}
+
+	public double getLowPrice() {
+		return lowPrice;
+	}
+
+	public void setLowPrice(double lowPrice) {
+		this.lowPrice = lowPrice;
+	}
+
+	public double getDealMount() {
+		return dealMount;
+	}
+
+	public void setDealMount(double dealMount) {
+		this.dealMount = dealMount;
+	}
+
+	public double getDealMoney() {
+		return dealMoney;
+	}
+
+	public void setDealMoney(double dealMoney) {
+		this.dealMoney = dealMoney;
+	}
+
+	@Override
+	public String toString() {
+		return "日期:"+dateStr+"	收盘价:" + lastPrice + "	涨跌幅:" + upDownPrice + "		前收价:" + prePrice
+				+ "	开盘价:" + openPrice + "	最高价:" + highPrice + "	最低价:"
+				+ lowPrice + "	成交量(手):" + dealMount + "	成交额(千元):" + dealMoney;
+	}
+
+	public String getDateStr() {
+		return dateStr;
+	}
+
+	public void setDateStr(String dateStr) {
+		this.dateStr = dateStr;
+	}
+}

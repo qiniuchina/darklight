@@ -1,0 +1,95 @@
+package com.dxc.darklight.dao;
+
+import java.sql.Date;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.entity.Record;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.util.DateUtils;
+
+@Repository
+public class StockModelMountDao extends BaseDao {
+
+	private static final Logger log = LogManager.getLogger(StockModelMountDao.class);
+	
+	public void saveAndUpateMount(StockModelMount stockModelMount){
+		dao.delete(stockModelMount);
+		dao.insert(stockModelMount);
+		/*int count = dao.count(StockModelMount.class, Cnd.wrap("stock_code='"+stockModelMount.getStockCode()+"' AND stock_date='"+stockModelMount.getStockDate()+"'"));
+		if(count==0)
+		{
+			dao.insert(stockModelMount);
+		}*/
+	}
+	
+	/**
+	 * 当有USER_ID的时候，只访问该用户关注的
+	 * @param id
+	 * @param date
+	 * @return
+	 */
+	public List<StockModelMount> getStockModelMountList(String userId){
+		Sql sql = Sqls.queryEntity("select * from(select tstock.*,sm.stock_code scode,sm.stock_date,sm.avg_mount,sm.avg_weight,sm.avg_price,"
+				+ "ifnull(sm.flag_phase,-1) flag_phase from "
+				+ "(select DISTINCT si.stock_code, si.stock_name,us.user_id from stock_info si, user_stock_news us where user_id=@userId"
+				+ " and (concat('sz',si.stock_code) =us.stock_code or concat('sh',si.stock_code) =us.stock_code))tstock "
+				+ "left join stock_model_mount sm on tstock.stock_code=sm.stock_code ORDER BY sm.stock_code, sm.stock_date desc) tbstock "
+				+ "GROUP BY stock_code");
+		sql.params().set("userId", userId);
+		List<StockModelMount> stockModelMountList=new ArrayList<StockModelMount>();
+		sql.setEntity(dao.getEntity(Record.class));
+		dao.execute(sql);
+		List<Record> ls=sql.getList(Record.class);
+		for(Record re:ls){
+			StockModelMount stockModelMount=re.toEntity(dao.getEntity(StockModelMount.class));
+			String stockName=re.getString("stock_name");
+			stockModelMount.setStockName(stockName);
+			stockModelMountList.add(stockModelMount);
+		}
+		return stockModelMountList;
+	}
+	
+	/**
+	 * 个股的基本信息
+	 * @param id
+	 * @param date
+	 * @return
+	 */
+	public StockModelMount getStockModelResult(String stockCode){
+		Sql sql = Sqls.queryEntity("select * from (select tstock.*,sm.stock_code scode,sm.stock_date,sm.avg_mount,sm.avg_weight,"
+				+ "sm.avg_price,ifnull(sm.flag_phase,-1) flag_phase from (select DISTINCT si.stock_code, si.stock_name from stock_info si, stock_news us" 
++" where us.stock_code=@stockCode and (concat('sz',si.stock_code) =us.stock_code or concat('sh',si.stock_code) =us.stock_code)"
++")tstock left join stock_model_mount sm on tstock.stock_code=sm.stock_code "
++" ORDER BY sm.stock_code, sm.stock_date desc) tbstock GROUP BY stock_code");
+		sql.params().set("stockCode", stockCode);
+		sql.setEntity(dao.getEntity(Record.class));
+		dao.execute(sql);
+		List<Record> ls=sql.getList(Record.class);
+		StockModelMount stockModelMount=null;
+		if(ls!=null){
+			Record re=ls.get(0);
+			stockModelMount=re.toEntity(dao.getEntity(StockModelMount.class));
+			String stockName=re.getString("stock_name");
+			stockModelMount.setStockName(stockName);
+		}
+		return stockModelMount;
+	}
+	
+	public Boolean isholiday(Date date){
+		String dt=DateUtils.getYYYYMMdd(date);
+		Sql sql =Sqls.queryRecord("select * from holiday where @dt BETWEEN DATE(start_date) and DATE(end_date)");
+		sql.params().set("dt", dt);
+		dao.execute(sql);
+		List<Record> ls=sql.getList(Record.class);
+		if(ls!=null&&ls.size()>0)
+			return true;
+		return false;
+	}
+}

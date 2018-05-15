@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!-- 默认配置 -->
+<configuration>
+
+    <!-- mysqljdb -->
+	<property>	
+		<name>jdbcUrl</name>
+		<value>jdbc:mysql://127.0.0.1:3306/darklight?characterEncoding=UTF-8</value>
+		<description>mysql账号</description>
+	</property>
+	<property>
+		<name>jdbc.username</name>
+		<value>happy</value>
+		<description>mysql账号</description>
+	</property>
+	<property>
+		<name>jdbc.password</name>
+		<value>qiniuno.1</value>
+		<description>mysql密码</description>
+	</property>
+	<property>
+		<name>SolrCollection</name>
+		<value>http://127.0.0.1:8983/solr/darklight</value>
+		<description>Solr Collection</description>
+	</property>
+	<property>
+		<name>StockNewsEntry</name>
+		<value>http://roll.finance.sina.com.cn/finance/zq1/ssgs/index_1.shtml</value>
+		<description>company News Entry url</description>
+	</property>
+	<property>
+		<name>financeNewsEntry</name>
+		<value>http://roll.finance.sina.com.cn/finance/zq1/ssgs/index_1.shtml</value>
+		<description>Finance News Entry url</description>
+	</property>	
+</configuration>

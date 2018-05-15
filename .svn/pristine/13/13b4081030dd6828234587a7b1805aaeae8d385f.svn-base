@@ -1,0 +1,263 @@
+package com.dxc.darklight.service.impl;
+
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Random;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.dxc.darklight.dao.StockModelMountDao;
+import com.dxc.darklight.dao.StockNewsDao;
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StockModelMount;
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.model.StocksInfoEntity;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.StockInfoService;
+
+@Service
+public class StockInfoServiceImpl extends BaseService implements StockInfoService {
+
+	private static final Logger log = LogManager.getLogger(StockInfoServiceImpl.class);
+	@Autowired
+	StockNewsDao dao;
+	@Autowired
+	StockModelMountDao mountDao;
+	private List<StocksInfoEntity> allStocks;
+	private void putStocks(StocksInfoEntity se)
+	{
+		if(allStocks==null)
+		{
+			allStocks = new ArrayList<StocksInfoEntity>();
+		}
+		allStocks.add(se);
+	}
+	@Override
+	public void processGetStocksInfo(String stockCd, String bDate, String eDate)
+			throws Exception {
+		try
+		{
+			String url = "http://q.stock.sohu.com/hisHq?code=cn_stockcd&start=bdate&end=edate&order=D&period=d";
+			url = url.replace("stockcd", stockCd);
+			url = url.replace("bdate", bDate);
+			url = url.replace("edate", eDate);
+
+			StocksInfoEntity se= null;
+			Document doc = JsoupParse.getDocument(url, "utf-8");
+			if(doc!=null && doc.data()!=null)
+			{
+				//System.out.println(url);
+				//System.out.println(doc.body().text());
+				if("{}".equalsIgnoreCase(doc.body().text()))
+				{
+					allStocks = null;
+					return;
+				}
+				JSONArray jsonArray = JSONObject.parseArray(doc.body().text());
+				JSONObject object = jsonArray.getJSONObject(0);
+				JSONArray hq = object.getJSONArray("hq");
+				JSONArray row = null;
+				for(int i=0; i<hq.size(); i++)
+				{
+					se = new StocksInfoEntity();
+					row = hq.getJSONArray(i);
+					se.setDateStr(row.getString(0));
+					se.setOpenPrice(row.getDoubleValue(1));
+					se.setClosePrice(row.getDoubleValue(2));
+					se.setUpDownMoney(row.getDoubleValue(3));
+					String upDownPercent = row.getString(4);
+					upDownPercent = upDownPercent.substring(0, upDownPercent.length()-1);
+					se.setUpDownMoneyPercent(Double.parseDouble(upDownPercent));
+					se.setLowestPrice(row.getDoubleValue(5));
+					se.setHighestPrice(row.getDoubleValue(6));
+					se.setDealMount(row.getDoubleValue(7));
+					se.setDealMoney(row.getDoubleValue(8));
+					String change = row.getString(9);
+					change = change.substring(0, change.length()-1);
+					se.setDealPercent(Double.parseDouble(change));
+					//System.out.println(se);
+					putStocks(se);
+				}
+			}
+			
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public double getMonutofStandardDeviation(int days) throws Exception {
+		// TODO Auto-generated method stub
+		double rev=-1;
+		if(allStocks!=null && allStocks.size()>0)
+		{
+			if(days>allStocks.size() || days==-1)
+			{
+				days = allStocks.size();
+			}
+			double avr = computAverage(days);
+			StocksInfoEntity se = null;
+			double totalNum = 0;
+			for(int i=0; i<days; i++)
+			{
+				se = allStocks.get(i);
+				double mount = se.getDealMount();
+				totalNum += Math.pow(mount-avr, 2);
+			}
+			BigDecimal b = new BigDecimal(Math.sqrt(totalNum/days));  
+			rev = b.setScale(2,BigDecimal.ROUND_HALF_UP).doubleValue(); 
+		}
+		return rev;
+	}
+	
+	private double computAverage(int days)
+	{
+		double total = 0;
+		StocksInfoEntity se = null;
+		for(int i=0; i<days; i++)
+		{
+			se = allStocks.get(i);
+			total += se.getDealMount();
+		}
+		System.out.println("全部平均值:"+total/days);
+		return total/days;
+	}
+	
+	public static void main(String[] args)
+	{
+		StockInfoService ss = new StockInfoServiceImpl();
+		try {
+			ss.processGetStocksInfo("002040", "20161127", "20170328");
+			double rev = ss.getMonutofStandardDeviation(-1);
+			double avr = ss.allSpotCheck(10, 5);
+			double ping = ss.computeLevel(avr*0.618, 5);
+			System.out.println("标准方差:"+rev);
+			System.out.println("随机平均值:"+avr);
+			System.out.println("随机平均值/0.618:"+avr*0.618);
+			System.out.println("随机平均值/2:"+avr/2);
+			System.out.println("权值:"+ping);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public double allSpotCheck(int count, int length) throws Exception
+	{
+		if(allStocks==null || allStocks.size()-length<=0)
+		{
+			System.out.println("抽样的样本数不够，请获取更多的样本数!");
+			return -1.0;
+		}
+		Random r = new Random();
+		double total = 0;
+		for(int i=1; i<=count; i++)
+		{
+			int start = r.nextInt(allStocks.size()-length+1);
+			total += spotCheck(start, length);
+		}
+		double rev = -1;
+		BigDecimal b = new BigDecimal(total/count);  
+		rev = b.setScale(4,BigDecimal.ROUND_HALF_UP).doubleValue(); 
+		return rev;
+	}
+	
+	private double spotCheck(int start, int length)
+	{
+		double total = 0;
+		StocksInfoEntity se = null;
+		for(int i=0; i<length; i++)
+		{
+			se = allStocks.get(start+i);
+			total += se.getDealMount();
+		}
+		return total/length;
+	}
+	
+	//判断最近days天数量小于avg的比例
+	public double computeLevel(double avg, int days)
+	{
+		double rev = -1;
+		if(allStocks==null || allStocks.size()<=0)
+		{
+			return rev;
+		}
+		if(avg < 0)
+		{
+			return rev;
+		}
+		if(allStocks.size()<=days)
+		{
+			days=allStocks.size();
+		}
+		
+		StocksInfoEntity se = null;
+		double percent = 0;
+		for(int i=0; i<days; i++)
+		{
+			se = allStocks.get(i);
+			double mount = se.getDealMount();
+			percent += (mount/avg);
+		}
+		BigDecimal b = new BigDecimal(percent/days);  
+		rev = b.setScale(4,BigDecimal.ROUND_HALF_UP).doubleValue(); 
+		return rev;
+	}
+	
+	public List<StockNews> getAllStockNews()
+	{
+		return dao.getAllStockNews();
+	}
+	@Override
+	public void clearDataSet() {
+		allStocks = null;
+	}
+	
+	@Override
+	public boolean checkMonutAndPrice(double avgMonut, double avgPrice, int days){
+		if(avgMonut < 0)
+		{
+			return false;
+		}
+		if(allStocks == null || allStocks.size()<=0)
+		{
+			return false;
+		}
+		if(days>=allStocks.size())
+		{
+			days = allStocks.size();
+		}
+		StocksInfoEntity se = null;
+		for(int i=0; i<days; i++)
+		{
+			se = allStocks.get(i);
+			double monut = se.getDealMount();
+			double price = se.getUpDownMoneyPercent();
+			price = Math.abs(price);
+			if(monut>avgMonut || price>avgPrice)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	@Override
+	public void saveAndUpateMount(StockModelMount stockModelMount){
+		mountDao.saveAndUpateMount(stockModelMount);
+	}
+}

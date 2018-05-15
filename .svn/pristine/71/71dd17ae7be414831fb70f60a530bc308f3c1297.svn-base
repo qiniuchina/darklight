@@ -1,0 +1,20 @@
+package com.dxc.darklight.service;
+
+import java.sql.Date;
+import java.util.List;
+
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.model.UserStock;
+
+public interface UserStockService {
+
+	public void saveFavoriteStock(String userId, String stockCode);
+	public void deleteFavoriteStock(String stockCode, String userId);
+	public List<String> getAllUserStockCodes();
+	public void saveUserStockCodes(StockCurrentPrice sc);
+	public void deletePreviousData(int hours);
+	public List<StockCurrentPrice> getStockPricesByNumber(String stockCd, int minuts);
+	public StockCurrentPrice getExistedStockPrice(String stockCd, String usrId);
+	public List<UserStock> getUserIdByStockCd(String stockCd);
+	public boolean isHoliday(Date date);
+}

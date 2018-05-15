@@ -1,0 +1,212 @@
+package com.dxc.darklight.spider;
+
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import org.jsoup.nodes.Document;
+
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.model.UserStockNews;
+import com.dxc.darklight.model.WeiXinTemplateModel;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.service.UserStockNewsService;
+import com.dxc.darklight.util.WeixinMsgUtil;
+import com.dxc.darklight.weixin.App;
+
+public class StockCurrentPriceSpider {
+
+	/**
+	 * 计算股票的交易量权值
+	 */
+	public static void work() {
+		
+		//当前时间必须在上午9点半到下午3点，否则不执行此方法
+		Calendar cal = Calendar.getInstance();
+		int hour = cal.get(Calendar.HOUR_OF_DAY);
+		int minute = cal.get(Calendar.MINUTE);
+		double hTime = hour + minute/60f;
+		
+		if(hTime<9.5 || hTime>15 || cal.get(Calendar.DAY_OF_WEEK)==Calendar.SATURDAY||cal.get(Calendar.DAY_OF_WEEK)==Calendar.SUNDAY)
+		{
+			System.out.println("此时间段不是交易时间!");
+			return;
+		}
+		UserStockNewsService userStockNewsService = ServiceFactory.createUserStockNewsService();
+		userStockNewsService.deletePreviousData(-12);
+		List<String> usrStocks = userStockNewsService.getAllUserStockCodes();
+		String url = "http://hq.sinajs.cn/list=";
+		if(usrStocks !=null && usrStocks.size() > 0)
+		{
+			String para = "";
+			for(String usrStock : usrStocks)
+			{
+				if(usrStock != null)
+				{
+					para += ("s_"+usrStock+",");
+				}
+			}
+			url = url + para;
+			Document doc = null;
+			try {
+				doc = JsoupParse.getDocument(url, "gb2312");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			String data = doc.body().html();
+			List<StockCurrentPrice> stockCurrentPrice= new ArrayList<StockCurrentPrice>();
+			if(data != null)
+			{
+				String [] arr = data.split(";");
+				if(arr!=null && arr.length>0)
+				{
+					for(int i=0; i<arr.length; i++)
+					{
+						try
+						{
+							String str = arr[i];
+							System.out.println(str);
+							//解析每一个字符串，得到股票代码和名称等信息
+							if(str!=null && !"".equals(str))
+							{
+								//如果是非法的返回就略过
+								String[] twoPart = str.split("=");
+								if(twoPart==null || twoPart.length!=2 || twoPart[1].length()<5)
+								{
+									continue;
+								}
+								
+								//解析股票代码
+								String partOne = twoPart[0];
+								String stockCd = partOne.substring(partOne.indexOf("_str_s_")+7);
+								
+								//解析当前价格以及涨跌幅，交易量等信息
+								String partTwo = twoPart[1];
+								partTwo = partTwo.substring(1, partTwo.length()-1);
+								String[] partTwoArr = partTwo.split(",");
+								String stockName = partTwoArr[0];
+								double currentPrice = Double.parseDouble(partTwoArr[1]);
+								double upDownPrice = Double.parseDouble(partTwoArr[2]);
+								double upDownPencent = Double.parseDouble(partTwoArr[3]);
+								int dealMount = Integer.parseInt(partTwoArr[4]);
+								
+								if(dealMount == 0)
+								{
+									continue;
+								}
+								
+								//生成当前价格对象
+								StockCurrentPrice sc = new StockCurrentPrice();
+								sc.setStockCode(stockCd);
+								sc.setStockName(stockName);
+								sc.setStockPrice(currentPrice);
+								sc.setStockUpdownPrice(upDownPrice);
+								sc.setStockUpdownPercent(upDownPencent);
+								sc.setStockDealMount(dealMount);
+								Timestamp ts = new Timestamp(System.currentTimeMillis());
+								sc.setCreateDtm(ts);
+								stockCurrentPrice.add(sc);
+								
+							}
+						}catch(Exception e)
+						{
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+			
+			List<WeiXinTemplateModel> weixinData = new ArrayList<WeiXinTemplateModel>();
+			SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+			Calendar calTime = Calendar.getInstance();
+			String wtime = sf.format(calTime.getTime());
+			//把当前价格的数据存入数据库
+			for(StockCurrentPrice sc : stockCurrentPrice)
+			{
+				double cPrice = sc.getStockUpdownPercent();
+				double cp = sc.getStockPrice();
+				String stockCd = sc.getStockCode();
+				String stockName = sc.getStockName();
+				//当股票涨幅有2个点的时候
+				if(Math.abs(cPrice) >= 2.0f)
+				{
+					List<UserStockNews> userStockNews = userStockNewsService.getUserIdByStockCd(stockCd);
+					if(userStockNews != null && userStockNews.size() > 0)
+					{
+						for(UserStockNews usrNew : userStockNews)
+						{
+							String usrId = usrNew.getUserId();
+							StockCurrentPrice preSc = userStockNewsService.getExistedStockPrice(stockCd, usrId);
+							WeiXinTemplateModel tempModel = null;
+							if(preSc == null)
+							{
+								//如果消息不存在，则插入到数据库里面
+								sc.setUserId(usrId);
+								userStockNewsService.saveUserStockCodes(sc);
+								//并且发送微信消息给用户
+								tempModel = new WeiXinTemplateModel();
+								tempModel.setToUser(usrId);
+								tempModel.setFirst("股票异动提醒");
+								tempModel.setTime(wtime);
+								if(cPrice>=0)
+								{
+									tempModel.setContent("您关注的股票("+stockName+")截止目前已经上涨了"+cPrice+"%, 请随时关注此股票!");
+								}
+								else
+								{
+									tempModel.setContent("您关注的股票("+stockName+")截止目前已经下跌了"+cPrice+"%, 请随时关注此股票!");
+								}
+								tempModel.setRemark("当前价格为:"+cp);
+								tempModel.setUrl(App.STOCK_NEWS_URL_PRE+stockCd);
+								weixinData.add(tempModel);
+							}
+							else
+							{
+								//如果今天消息已经发送过了的, 但是股票价格又有较大的波动，再次发送消息给用户
+								double prePrice = preSc.getStockUpdownPercent();
+								if(Math.abs(cPrice - prePrice) >= 1.5f)
+								{
+									//存入数据库
+									sc.setUserId(usrId);
+									userStockNewsService.saveUserStockCodes(sc);
+									//并且发送微信消息给用户
+									tempModel = new WeiXinTemplateModel();
+									tempModel.setToUser(usrId);
+									tempModel.setFirst("股票异动提醒");
+									tempModel.setTime(wtime);
+									if(cPrice>=0)
+									{
+										tempModel.setContent("您关注的股票("+stockName+")截止目前已经上涨了"+cPrice+"%, 请随时关注此股票!");
+									}
+									else
+									{
+										tempModel.setContent("您关注的股票("+stockName+")截止目前已经下跌了"+cPrice+"%, 请随时关注此股票!");
+									}
+									tempModel.setRemark("当前价格为:"+cp);
+									tempModel.setUrl(App.STOCK_NEWS_URL_PRE+stockCd);
+									weixinData.add(tempModel);
+								}
+							}
+						}
+					}
+					
+				}
+			}
+			
+			//发送模板消息
+			if(weixinData.size()>0)
+			{
+				WeixinMsgUtil.sendWeixinMsg(weixinData);
+			}
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		work();
+	}
+
+}

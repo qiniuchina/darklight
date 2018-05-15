@@ -1,0 +1,270 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<!DOCTYPE html>
+<html>
+<head>
+<title>大盘综述</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport"
+	content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="http://cdn.bootcss.com/font-awesome/4.2.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="../css/common.css" />
+<link rel="stylesheet" href="../css/pullToRefresh.css?v=1.3" />
+<script src="../js/jquery-1.11.3.min.js"></script>
+<script src="http://cdn.bootcss.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<script src="../js/iscroll.js"></script>
+<script src="../js/pullToRefresh.js"></script>
+
+</head>
+<body>
+	<!--must content ul li,or shoupi-->
+	<!-- 模态框（Modal） -->
+	<div class="modal fade" id="reviewModal"  tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	    <div class="modal-dialog">
+	        <div class="modal-content">
+	            <div class="modal-header">
+	                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+	                <h4 class="modal-title" id="myModalLabel">本条股评准确吗?</h4>
+	            </div>
+	            <div class="modal-footer">
+	            	<button id="confirm" type="button" class="btn btn-primary">准确</button>
+	                <button id="cancel" type="button" class="btn btn-default" data-dismiss="modal">不准确</button>
+	            </div>
+	        </div><!-- /.modal-content -->
+	    </div><!-- /.modal -->
+	</div>
+	<div id="wrapper">
+		<ul>
+			<c:forEach items="${commentsList}" var="stockComment">
+			<li class="row" id="<fmt:formatDate value="${stockComment.pubDate}" pattern="yyyy-MM-dd HH:mm" />,${stockComment.id}">
+			  <div class="col-xs-3" style="margin-top:5px;padding-right:5px">
+			    <div class="row">
+			      <div class="col-xs-12" style="padding-right:5px">
+			      <c:if test="${stockComment.correct==null}">
+					<a id="${stockComment.id}" onclick="reviewComments('${stockComment.id}')"><i class="fa fa-check-circle-o" aria-hidden="true"></i></a>
+				  </c:if>
+			      &nbsp;&nbsp;${stockComment.author}  
+			      </div>
+			    </div>
+			    <div class="row">
+				  <div class="col-xs-12">&nbsp;准确率:${stockComment.accuracy}%</div>
+				</div>
+			  </div>
+			   <div class="col-xs-8" style="margin-top:5px;">
+							<a href="${stockComment.newsLink}">${stockComment.title}&nbsp;</a>(<fmt:formatDate value="${stockComment.pubDate}" pattern="yyyy-MM-dd HH:mm" />)
+			  </div>
+			</li>
+			</c:forEach>			
+		</ul>
+	</div>
+	</div>
+	<div style="height: 60px;"></div>
+<%@ include file="footer.jsp" %>
+<script>
+
+var currUserId="${sessionScope.user.userId}"
+		//下拉下拉初始化
+		refresher.init({
+			id : "wrapper",
+			pullDownAction : refresh,
+			pullUpAction : load
+		});
+		
+		//上拉刷新新闻，加载所有最新更新的新闻
+		function refresh() {
+			 // <-- Simulate network congestion, remove setTimeout from production!
+			var el, li, commentId;
+			var allLi = $("#wrapper ul").children();
+			if(allLi!=null&&allLi.length>0){
+				commentId = allLi[0].getAttribute("id");
+			}
+			var allIds = new Array();
+			$.each(allLi, function(i){
+				allIds.push(allLi[i].getAttribute("id").split(",")[1]);
+			});
+			el = document.querySelector("#wrapper ul");
+			//这里写你的刷新代码
+			document.getElementById("wrapper").querySelector(
+					".pullDownIcon").style.display = "none";
+			document.getElementById("wrapper").querySelector(
+					".pullDownLabel").innerHTML = "刷新成功";
+						$.ajax({
+							url : "/darklight/comments/refresh",
+							type : "get",
+							data: { "id": commentId },
+							datatype : "json",
+							success : function(data) {
+								var li;
+								var jsonData = eval(data);
+								var refreshCommentsList = jsonData.refreshCommentsList;
+								$.each(refreshCommentsList, function(index, item) {
+									//循环获取数据
+									var id = refreshCommentsList[index].id;
+									if($.inArray(id,allIds)==-1){
+										var newsLink = refreshCommentsList[index].newsLink;
+										var title = refreshCommentsList[index].title;
+										var pubDate = refreshCommentsList[index].pubDate;
+										var author = refreshCommentsList[index].author;
+										var accuracy = refreshCommentsList[index].accuracy;
+										li = document.createElement("li");
+										//为li标签设置id属性并赋值
+										li.setAttribute("id", timeStamp2String(pubDate)+","+id);
+										li.setAttribute("class", "row");
+										//拼接HTML代码
+										var favorNews="<div class='col-xs-3' style='margin-top:5px'><div class='row'><div class='col-xs-12'>";
+										favorNews = favorNews+"<a id='"+id+"' onclick='reviewComments("+id+")'>";
+										favorNews = favorNews+"<i id='reviewIcon' class='fa fa-check-circle-o' aria-hidden='true'></i>";
+										favorNews = favorNews+"</a>&nbsp;&nbsp;"+author+"</div></div><div class='row'><div class='col-xs-12'>&nbsp;";
+										favorNews = favorNews+"准确率:"+accuracy+"%</div></div></div>";
+										favorNews = favorNews+"<div class='col-xs-8' style='margin-top:5px'>"+"<a href='"+newsLink+"'>"+title+"</a>";
+										favorNews = favorNews + "&nbsp;(" + timeStamp2String(pubDate)+")";
+										li.innerHTML = favorNews;
+										if(commentId!=null){
+											el.insertBefore(li,el.childNodes[0]);
+										}else{
+											$("#wrapper ul").append(li);
+										}
+									}
+								});
+							}
+						});
+						wrapper.refresh();
+						document.getElementById("wrapper")
+								.querySelector(".pullDownLabel").innerHTML = "";
+					
+			/****remember to refresh after  action completed！ ---yourId.refresh(); ----| ****/
+					
+		}
+		
+		//下拉加载更多新闻，每次10条
+		function load() {
+			var commentId;
+			var allLi = $("#wrapper ul").children();
+			if(allLi!=null&&allLi.length>0){
+				commentId = allLi[allLi.length-1].getAttribute("id");
+			}
+			var allIds = new Array();
+			$.each(allLi, function(i){
+				allIds.push(allLi[i].getAttribute("id").split(",")[1]);
+			});
+			// <-- Simulate network congestion, remove setTimeout from production!
+						$.ajax({
+							url : "/darklight/comments/more",
+							type : "get",
+							data: { "id": commentId},
+							datatype : "json",
+							success : function(data) {
+								var li;
+								var jsonData = eval(data);
+								var moreCommentsList = jsonData.moreCommentsList;
+								$.each(moreCommentsList, function(index, item) {
+									//循环获取数据
+									var id = moreCommentsList[index].id;
+									if($.inArray(id,allIds)==-1){
+										var newsLink = moreCommentsList[index].newsLink;
+										var title = moreCommentsList[index].title;
+										var pubDate = moreCommentsList[index].pubDate;
+										var author = moreCommentsList[index].author;
+										var accuracy = moreCommentsList[index].accuracy;
+										li = document.createElement("li");
+										//为li标签设置id属性并赋值
+										li.setAttribute("id", timeStamp2String(pubDate)+","+id);
+										li.setAttribute("class", "row");
+										//拼接HTML代码
+										var favorNews="<div class='col-xs-3' style='margin-top:5px'><div class='row'><div class='col-xs-12'>";
+										favorNews = favorNews+"<a id='"+id+"' onclick='reviewComments("+id+")'>";
+										favorNews = favorNews+"<i id='reviewIcon' class='fa fa-check-circle-o' aria-hidden='true'></i>";
+										favorNews = favorNews+"</a>&nbsp;&nbsp;"+author+"</div></div><div class='row'><div class='col-xs-12'>&nbsp;";
+										favorNews = favorNews+"准确率:"+accuracy+"%</div></div></div>";
+										favorNews = favorNews+"<div class='col-xs-8' style='margin-top:5px'>"+"<a href='"+newsLink+"'>"+title+"</a>";
+										favorNews = favorNews + "&nbsp;(" + timeStamp2String(pubDate)+")";
+										li.innerHTML = favorNews;
+										$("#wrapper ul").append(li);
+									}
+								});
+							}
+						});
+						wrapper.refresh();
+				
+		}
+		
+		//将timestap转换为date格式的string
+		function timeStamp2String(time) {
+			var datetime = new Date();
+			datetime.setTime(time);
+			var year = datetime.getFullYear();
+			var month = datetime.getMonth() + 1;
+			if (month < 10) {
+				month = "0" + month;
+			}
+			var date = datetime.getDate();
+			if (date < 10) {
+				date = "0" + date;
+			}
+			var hour = datetime.getHours();
+			if (hour < 10) {
+				hour = "0" + hour;
+			}
+			var minute = datetime.getMinutes();
+			if (minute < 10) {
+				minute = "0" + minute;
+			}
+			return year + "-" + month + "-" + date + " " + hour + ":" + minute;
+		};
+
+		//审核股评
+		function reviewComments(id) {
+			$("#reviewModal").modal("show");
+			$("#confirm").off("click").on("click",function(){
+				$.ajax({
+					url : "/darklight/comments/review",
+					type : "post",
+					data : {"CommentsId" : id, "reviewResult": 1},
+					datatype : "json",
+					success : function(data){
+						alert("审核完毕！");
+						if(data.result==4){
+							$('#'+id).remove();
+						}
+					}
+				});
+				$("#reviewModal").modal("hide");
+			});
+			$("#cancel").off("click").on("click",function(){
+				$.ajax({
+					url : "/darklight/comments/review",
+					type : "post",
+					data : {"CommentsId" : id, "reviewResult": 0},
+					datatype : "json",
+					success : function(data){
+						alert("审核完毕！");
+						if(data.result==4){
+							$('#'+id).remove();
+						}
+					}
+				});
+				$("#reviewModal").modal("hide");
+			});
+		}
+		
+		(function(doc, win) {
+			var docEl = doc.documentElement, resizeEvt = 'orientationchange' in window ? 'orientationchange'
+					: 'resize', recalc = function() {
+				var clientWidth = docEl.clientWidth;
+				if (!clientWidth)
+					return;
+				docEl.style.fontSize = 100 * (clientWidth / 750) + 'px';
+			};
+			if (!doc.addEventListener)
+				return;
+			win.addEventListener(resizeEvt, recalc, false);
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+</script>
+</body>
+</html>

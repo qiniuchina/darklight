@@ -1,0 +1,49 @@
+package com.dxc.darklight.conf;
+
+import java.io.File;
+
+public class ConfFactory {
+	public static String CONF_HOME = "/opt/conf";
+
+	private Conf globalConf = null;
+
+	private static ConfFactory instance = null;
+
+	private static ConfFactory getInstance() {
+		if (instance == null) {
+			instance = new ConfFactory();
+		}
+
+		return instance;
+	}
+
+	private ConfFactory() {
+		globalConf = new Conf();
+		globalConf.loadResource(new File(CONF_HOME + "/conf-default.xml"));
+	}
+
+	/**
+	 * 获取全局的配置文件
+	 * 
+	 * @return
+	 */
+	private Conf getAppConf() {
+		return globalConf;
+	}
+
+	/**
+	 * 方便全局访问
+	 * 
+	 * @return
+	 */
+	public static Conf getConf() {
+		return ConfFactory.getInstance().getAppConf();
+	}
+
+	public static void addResource(String filename) {
+		getConf().loadResource(new File(CONF_HOME + File.separator + filename));
+//		getConf().loadResource(new File(CONF_HOME + "/conf-dev.xml"));
+	}
+
+
+}

@@ -1,0 +1,16 @@
+package com.dxc.darklight.dao;
+
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.util.IdGeneratorUtil;
+
+@Repository
+public class TopNewsStockDao extends BaseDao{
+	
+	public String insertTopNewsStock(TopNewsStock topNewsStock) throws Exception{
+		topNewsStock.setId(IdGeneratorUtil.getId());
+		dao.insert(topNewsStock);
+		return "success";
+	}
+}

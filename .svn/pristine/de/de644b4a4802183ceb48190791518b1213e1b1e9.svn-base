@@ -1,0 +1,82 @@
+package com.dxc.darklight.model;
+
+import java.sql.Timestamp;
+
+import org.nutz.dao.entity.annotation.Column;
+import org.nutz.dao.entity.annotation.Table;
+
+
+/**
+ * 行业信息
+ * 
+ */
+@Table("industry_stocks")
+public class IndustryStocks{
+	@Column("industry_cd")
+	private String industryCd;
+	@Column("stock_id")
+	private String stockId;
+	public String getIndustryCd() {
+		return industryCd;
+	}
+	public void setIndustryCd(String industryCd) {
+		this.industryCd = industryCd;
+	}
+	public String getStockId() {
+		return stockId;
+	}
+	public void setStockId(String stockId) {
+		this.stockId = stockId;
+	}
+	public String getStockName() {
+		return stockName;
+	}
+	public void setStockName(String stockName) {
+		this.stockName = stockName;
+	}
+	public String getStockWin() {
+		return stockWin;
+	}
+	public void setStockWin(String stockWin) {
+		this.stockWin = stockWin;
+	}
+	public String getTotalStock() {
+		return totalStock;
+	}
+	public void setTotalStock(String totalStock) {
+		this.totalStock = totalStock;
+	}
+	public String getPassStock() {
+		return passStock;
+	}
+	public void setPassStock(String passStock) {
+		this.passStock = passStock;
+	}
+	public Timestamp getCreateDtm() {
+		return createDtm;
+	}
+	public void setCreateDtm(Timestamp createDtm) {
+		this.createDtm = createDtm;
+	}
+	@Column("stock_name")
+	private String stockName;
+	@Column("stock_win")
+	private String stockWin;
+	@Column("total_stock")
+	private String totalStock;
+	@Column("pass_stock")
+	private String passStock;
+	@Column("create_dtm")
+	private Timestamp createDtm;
+	
+	public void print()
+	{
+		System.out.println("行业代码:"+industryCd+"---股票代码:"+stockId+"---股票名称:"+stockName+"---换手率:"+stockWin+"---总股本:"+totalStock+"---流通股本:"+passStock);
+	}
+	
+	@Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		return "行业代码:"+industryCd+"---股票代码:"+stockId+"---股票名称:"+stockName+"---换手率:"+stockWin+"---总股本:"+totalStock+"---流通股本:"+passStock;
+	}
+}

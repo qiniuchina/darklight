@@ -1,0 +1,72 @@
+package com.dxc.darklight.service.impl;
+
+import java.sql.Date;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.model.UserStock;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.UserStockNewsService;
+
+@Service
+public class UserStockNewsServiceImpl extends BaseService implements UserStockNewsService {
+
+	private static final Logger log = LogManager.getLogger(UserStockNewsServiceImpl.class);
+
+	/*@Autowired
+	StockNewsDao dao;*/
+
+	@Override
+	public List<String> getAllUserStockCodes() {
+		// TODO Auto-generated method stub
+		//return dao.getAllUserStockCodes();
+		return null;
+	}
+
+	@Override
+	public void saveUserStockCodes(StockCurrentPrice sc) {
+		//return dao.getAllUserStockCodes();
+				return;
+	}
+
+	@Override
+	public void deletePreviousData(int hours) {
+		SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.HOUR, hours);
+		String time = sf.format(cal.getTime());
+		//return dao.getAllUserStockCodes();
+				return;
+	}
+
+	@Override
+	public List<StockCurrentPrice> getStockPricesByNumber(String stockCd, int minuts) {
+		
+		//return dao.getAllUserStockCodes();
+				return null;
+	}
+
+	@Override
+	public StockCurrentPrice getExistedStockPrice(String stockCd, String usrId) {
+		//return dao.getAllUserStockCodes();
+				return null;
+	}
+
+	@Override
+	public List<UserStock> getUserIdByStockCd(String stockCd) {
+		
+		//return dao.getAllUserStockCodes();
+				return null;
+	}
+	public boolean isHoliday(Date date){
+		//return dao.getAllUserStockCodes();
+				return true;
+	}
+}

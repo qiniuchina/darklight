@@ -1,0 +1,24 @@
+package com.dxc.darklight.service.impl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.TopNewsStockDao;
+import com.dxc.darklight.model.TopNewsStock;
+import com.dxc.darklight.service.TopNewsStockService;
+
+@Service
+public class TopNewsStockImpl implements TopNewsStockService {
+
+	@Autowired
+	TopNewsStockDao dao;
+	
+	@Override
+	public boolean insertTopNewsStock(TopNewsStock topNewsStock)
+			throws Exception {
+		// TODO Auto-generated method stub
+		dao.insertTopNewsStock(topNewsStock);
+		return true;
+	}
+
+}

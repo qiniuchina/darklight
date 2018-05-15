@@ -1,0 +1,175 @@
+package com.dxc.darklight.dao;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.nutz.dao.Cnd;
+import org.nutz.dao.Sqls;
+import org.nutz.dao.sql.Sql;
+import org.springframework.stereotype.Repository;
+
+import com.dxc.darklight.model.StockNews;
+import com.dxc.darklight.util.CommonUtil;
+
+@Repository
+public class StockNewsDao extends BaseDao {
+
+	/**
+	 * 新增StockNews
+	 * 
+	 * @param StockNews
+	 * @return
+	 */
+	public void insertStockNews(StockNews stockNews) {
+		stockNews.setId(CommonUtil.getGenerateId());
+		dao.insert(stockNews);
+	}
+
+	/**
+	 * 通过新闻链接URL查找新闻
+	 * 
+	 * @param String
+	 * @return StockNews
+	 */
+	public StockNews queryStockNewsByLink(String newsLink) {
+		List<StockNews> stockNewsList = dao.query(StockNews.class,
+				Cnd.where("news_link", "=", newsLink));
+		StockNews stockNews = null;
+		if (stockNewsList != null && stockNewsList.size() > 0) {
+			stockNews = stockNewsList.get(0);
+		}
+		return stockNews;
+	}
+
+	/**
+	 * 查询所有未处理的StockNews
+	 * 
+	 * @param
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> getUnprocessStockNews() {
+		Sql sql = Sqls
+				.queryEntity("SELECT * FROM stock_news WHERE status_flag IS NULL OR status_flag=0");
+		List<StockNews> newsList = new ArrayList<StockNews>();
+		sql.setEntity(dao.getEntity(StockNews.class));
+		dao.execute(sql);
+		List<StockNews> ls = sql.getList(StockNews.class);
+		for (StockNews re : ls) {
+			newsList.add(re);
+		}
+		return newsList;
+	}
+
+	/**
+	 * 通过ID更新StockNews
+	 * @param String
+	 * @param int
+	 * @return
+	 */
+	public void updateStockNewsById(double rate,String newsId, int flag) {
+		Sql sql = Sqls.create("update stock_news set change_rate=@rate,status_flag = @flag,update_dt=NOW() where id = @id");
+		sql.params().set("rate", rate);
+		sql.params().set("flag", flag);
+		sql.params().set("id", newsId);
+		dao.execute(sql);
+	}
+
+	/**
+	 * 获取最新的新闻列表
+	 * 
+	 * @param
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> listStockNews(Integer newsSource) {
+		String sqlString = "";
+		if (newsSource == 0) {
+			sqlString = "select sn.id,sn.title,sn.news_link,sn.pub_date,sn.stock_code,floor(sn.change_rate) as change_rate,"
+					+ "sn.media,sn.news_source,sn.bear_flag,sn.create_dt,sn.status_flag,sn.update_dt,bs.stock_name"
+					+ " from stock_news sn, base_stocks bs"
+					+ " where sn.stock_code=bs.stock_code and ((sn.news_source=0 and sn.status_flag=2) "
+					+ " or (sn.news_source=1 and (sn.status_flag=1 or sn.status_flag=2)))"
+					+ " group by sn.news_link order by sn.pub_date desc limit 10 ";
+		} else {
+			sqlString = "select sn.id,sn.title,sn.news_link,sn.pub_date,sn.stock_code,floor(sn.change_rate) as change_rate,"
+					+ "sn.media,sn.news_source,sn.bear_flag,sn.create_dt,sn.status_flag,sn.update_dt,bs.stock_name"
+					+ " from stock_news sn, base_stocks bs"
+					+ " where sn.stock_code=bs.stock_code and sn.news_source=1 and (sn.status_flag=1 or sn.status_flag=2) "
+					+ " group by sn.news_link order by sn.pub_date desc limit 10 ";
+		}
+		Sql sql = Sqls.queryEntity(sqlString);
+		sql.setEntity(dao.getEntity(StockNews.class));
+		dao.execute(sql);
+		return sql.getList(StockNews.class);
+	}
+
+	/**
+	 * 获取更新的新闻列表
+	 * 
+	 * @param long,Date
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> refreshStockNews(Date pubDate, Integer newsSource) {
+		String sqlString = "";		
+		if (newsSource == 0) {
+			sqlString = "select sn.id,sn.title,sn.news_link,sn.pub_date,sn.stock_code,floor(sn.change_rate) as change_rate,"
+					+ "sn.media,sn.news_source,sn.bear_flag,sn.create_dt,sn.status_flag,sn.update_dt,bs.stock_name"
+					+ " from stock_news sn, base_stocks bs"
+					+ " where sn.stock_code=bs.stock_code and ((sn.news_source=0 and sn.status_flag=2)  "
+					+ " or (sn.news_source=1 and (sn.status_flag=1 or sn.status_flag=2))) and date_format(sn.pub_date,'%Y-%m-%d %H:%i') >= @pub_date"
+					+ " group by sn.news_link order by sn.pub_date desc limit 10 ";
+		} else {
+			sqlString = "select sn.id,sn.title,sn.news_link,sn.pub_date,sn.stock_code,floor(sn.change_rate) as change_rate,"
+					+ "sn.media,sn.news_source,sn.bear_flag,sn.create_dt,sn.status_flag,sn.update_dt,bs.stock_name"
+					+ " from stock_news sn, base_stocks bs"
+					+ " where sn.stock_code=bs.stock_code and sn.news_source=1 and (sn.status_flag=1 or sn.status_flag=2) and date_format(sn.pub_date,'%Y-%m-%d %H:%i') >= @pub_date "
+					+ " group by sn.news_link order by sn.pub_date desc limit 10 ";
+		}
+		Sql sql = Sqls.queryEntity(sqlString);
+		sql.setEntity(dao.getEntity(StockNews.class));
+		sql.params().set("pub_date", pubDate);
+		dao.execute(sql);
+		return sql.getList(StockNews.class);
+	}
+
+	/**
+	 * 获取历史的新闻列表
+	 * 
+	 * @param long,Date
+	 * @return List<StockNews>
+	 */
+	public List<StockNews> listStockNewsHistory(Date pubDate, Integer newsSource) {
+		String sqlString = "";
+		if (newsSource == 0) {
+			sqlString = "select sn.id,sn.title,sn.news_link,sn.pub_date,sn.stock_code,floor(sn.change_rate) as change_rate,"
+					+ "sn.media,sn.news_source,sn.bear_flag,sn.create_dt,sn.status_flag,sn.update_dt,bs.stock_name"
+					+ " from stock_news sn, base_stocks bs"
+					+ " where sn.stock_code=bs.stock_code and ((sn.news_source=0 and sn.status_flag=2)  "
+					+ " or (sn.news_source=1 and (sn.status_flag=1 or sn.status_flag=2))) and date_format(sn.pub_date,'%Y-%m-%d %H:%i') <= @pub_date"
+					+ " group by sn.news_link order by sn.pub_date desc limit 10 ";
+		} else {
+			sqlString = "select sn.id,sn.title,sn.news_link,sn.pub_date,sn.stock_code,floor(sn.change_rate) as change_rate,"
+					+ "sn.media,sn.news_source,sn.bear_flag,sn.create_dt,sn.status_flag,sn.update_dt,bs.stock_name"
+					+ " from stock_news sn, base_stocks bs"
+					+ " where sn.stock_code=bs.stock_code and sn.news_source=1 and (sn.status_flag=1 or sn.status_flag=2) and date_format(sn.pub_date,'%Y-%m-%d %H:%i') <= @pub_date "
+					+ " group by sn.news_link order by sn.pub_date desc limit 10 ";
+		}
+		Sql sql = Sqls.queryEntity(sqlString);
+		sql.setEntity(dao.getEntity(StockNews.class));
+		sql.params().set("pub_date", pubDate);
+		dao.execute(sql);
+		return sql.getList(StockNews.class);
+	}
+
+	/**
+	 * 设置新闻为过期新闻
+	 * 
+	 * @param String
+	 */
+	public void expireNews(String stockCode) {
+		Sql sql = Sqls
+				.create("update stock_news set status_flag = 3 where stock_code = @stockCode AND create_dt<NOW()");
+		sql.params().set("stockCode", stockCode);
+		dao.execute(sql);
+	}
+}

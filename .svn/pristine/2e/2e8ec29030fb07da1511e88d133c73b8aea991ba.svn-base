@@ -1,0 +1,167 @@
+package com.dxc.darklight.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StocksInfoEntity;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.StockInfoService;
+
+@Service
+public class StockInfoServiceImpl extends BaseService implements StockInfoService {
+
+	private static final Logger log = LogManager.getLogger(StockInfoServiceImpl.class);
+	private static final int MAXLOOPSIZE = 100;
+	private String url = "http://vip.stock.finance.sina.com.cn/quotes_service/view/vMS_tradehistory.php?symbol=stockid&date=curdate";
+
+	private List<StocksInfoEntity> allStocks;
+	private void putStocks(StocksInfoEntity se)
+	{
+		if(allStocks==null)
+		{
+			allStocks = new ArrayList<StocksInfoEntity>();
+		}
+		allStocks.add(se);
+	}
+	@Override
+	public void processGetStocksInfo(String stockId, int passedDays)
+			throws Exception {
+		try
+		{
+			url = url.replace("stockid", stockId);
+			SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd");
+			Calendar cal = Calendar.getInstance();
+			String str = null;
+			String stUrl = null;
+			StocksInfoEntity se= null;
+			int maxloop = 0;
+			int nextloop = 0;
+			do
+			{
+				if(nextloop == passedDays)
+				{
+					break;
+				}
+				maxloop++;
+				str = sf.format(cal.getTime());
+				stUrl = url.replace("curdate", str);
+				se = getStocksInfo(stUrl);
+				if(se != null)
+				{
+					nextloop++;
+					se.setDateStr(str);
+					putStocks(se);
+				}
+				cal.add(Calendar.DATE, -1);
+			}
+			while(maxloop<=MAXLOOPSIZE);
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	private StocksInfoEntity getStocksInfo(String url)
+	{
+		try
+		{
+			StocksInfoEntity se = null;
+			Document doc = JsoupParse.getDocument(url, "utf-8");
+			
+			Element divContent= JsoupParse.getElement(doc, "div.marketData");
+			if(divContent==null)
+			{
+				return null;
+			}
+			Elements trs = JsoupParse.getElements(divContent, "tr");
+			if(trs == null || trs.size()!=8)
+			{
+				return null;
+			}
+			se = new StocksInfoEntity();
+			//收盘价
+			double lastPrice = Double.parseDouble(JsoupParse.getText(trs.get(0), "span"));
+			if(lastPrice == 0)
+			{
+				return null;
+			}
+			se.setLastPrice(lastPrice);
+			
+			//涨跌幅
+			String strUpDownPrice = JsoupParse.getText(trs.get(1), "span");
+			if(strUpDownPrice == null)
+			{
+				return null;
+			}
+			strUpDownPrice = strUpDownPrice.substring(0, strUpDownPrice.indexOf("%"));
+			double upDownPrice = Double.parseDouble(strUpDownPrice);
+			se.setUpDownPrice(upDownPrice);
+			
+			//前收价
+			double prePrice = Double.parseDouble(JsoupParse.getText(trs.get(2).child(1)));
+			if(prePrice == 0)
+			{
+				return null;
+			}
+			se.setPrePrice(prePrice);
+			
+			//开盘价
+			double openPrice = Double.parseDouble(JsoupParse.getText(trs.get(3).child(1)));
+			if(openPrice == 0)
+			{
+				return null;
+			}
+			se.setOpenPrice(openPrice);
+			
+			//最高价
+			double highPrice = Double.parseDouble(JsoupParse.getText(trs.get(4).child(1)));
+			if(highPrice == 0)
+			{
+				return null;
+			}
+			se.setHighPrice(highPrice);
+			
+			//最低价
+			double lowPrice = Double.parseDouble(JsoupParse.getText(trs.get(5).child(1)));
+			if(lowPrice == 0)
+			{
+				return null;
+			}
+			se.setLowPrice(lowPrice);
+			
+			//成交量(手)
+			double dealMount = Double.parseDouble(JsoupParse.getText(trs.get(6).child(1)));
+			if(dealMount == 0)
+			{
+				return null;
+			}
+			se.setDealMount(dealMount);
+			
+			//成交额(千元)
+			double dealMoney = Double.parseDouble(JsoupParse.getText(trs.get(7).child(1)));
+			if(dealMoney == 0)
+			{
+				return null;
+			}
+			se.setDealMoney(dealMoney);
+			return se;
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+}

@@ -1,0 +1,33 @@
+package com.dxc.darklight.service.impl;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.IndustryInfoDao;
+import com.dxc.darklight.model.IndustryInfo;
+import com.dxc.darklight.model.IndustryStocks;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.IndustryInfoService;
+
+@Service
+public class IndustryInfoServiceImpl extends BaseService implements IndustryInfoService {
+
+	private static final Logger log = LogManager.getLogger(IndustryInfoServiceImpl.class);
+
+	@Autowired
+	IndustryInfoDao dao;
+
+	@Override
+	public void insertIndustryInfo(IndustryInfo industryInfo)
+			throws Exception {
+		dao.insertIndustryInfo(industryInfo);
+	}
+
+	@Override
+	public void insertIndustryStocks(IndustryStocks industryStocks)
+			throws Exception {
+		dao.insertIndustryStocks(industryStocks);
+	}
+}

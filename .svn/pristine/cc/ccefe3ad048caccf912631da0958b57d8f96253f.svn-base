@@ -1,0 +1,67 @@
+package com.dxc.darklight.spider;
+
+import java.util.Date;
+
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import com.dxc.darklight.http.JsoupParse;
+import com.dxc.darklight.model.StockComment;
+import com.dxc.darklight.service.ServiceFactory;
+import com.dxc.darklight.util.CommonUtil;
+import com.dxc.darklight.util.DateUtils;
+
+public class StockCommentSpider implements Runnable {
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		String strURL = "http://blog.sina.com.cn/jinyanshi";
+		strURL = "http://blog.sina.com.cn/shuipi";
+		strURL = "http://blog.sina.com.cn/liaonanguwang";
+		//strURL = "http://blog.sina.com.cn/ixmg";
+		
+		System.out.println("...start...");
+		
+		Document dynamic_doc = JsoupParse.getDocument(strURL, "utf-8", 1000);
+		Elements elements = dynamic_doc.select(".blog_title");
+		for (Element element : elements) {
+			System.out.println(element.text());
+			System.out.println(element.child(0).attr("href"));
+			Element pubDate = element.parent().select(".time*").first();
+			System.out.println(pubDate.text());
+			
+			StockComment stockComment = new StockComment();
+			stockComment.setId(CommonUtil.getGenerateId());
+			stockComment.setAuthor("新浪博客");
+			stockComment.setTitle(element.text());			
+			stockComment.setNewsLink(element.child(0).attr("href"));
+			try{
+				stockComment.setFetchDate(new Date());
+				stockComment.setPubDate(DateUtils.parseFullTime(pubDate.text()));
+			}catch(Exception e){
+				stockComment.setPubDate(null);
+			}
+			saveStockComment(stockComment);			
+		}
+		System.out.println("......end......");
+	}
+
+	/**
+	 * 
+	 * @param author
+	 */
+	public void saveStockComment(StockComment stockComment){
+		ServiceFactory.createBlackStockService().isValidNews("");
+		ServiceFactory.createStockCommentService().insertStockComment(stockComment);
+	}
+	
+	public static void work() {
+		new Thread(new StockCommentSpider()).start();
+	}
+
+	public static void main(String[] args) throws Exception {
+		work();
+	}
+}

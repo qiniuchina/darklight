@@ -1,0 +1,316 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %> 
+<!DOCTYPE html>
+<html>
+<head>
+<title>个股追踪</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport"
+	content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link href="http://cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="http://cdn.bootcss.com/font-awesome/4.2.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="../css/common.css?v=1.5" />
+<link rel="stylesheet" href="../css/pullToRefresh.css" />
+<link rel="stylesheet" href="../css/toastr.min.css" />
+<script src="../js/jquery-1.11.3.min.js"></script>
+<script src="../js/toastr.min.js"></script>
+
+</head>
+<body>
+<div class="container">
+	<!--must content ul li,or shoupi-->
+	
+		<div id="dapanDetail" class="row" style="margin-top:5px;padding-bottom:5px;border-bottom: 1px solid #eee;">
+			
+			<div class="col-xs-3 " style="padding-left:5px;padding-right:0px;border-right: 1px solid #eee;">
+			<div class="row">				
+			  <div class="col-xs-10 " id="dapanCurrPrice1" style="text-align:left;color: red;"></div>
+			  </div>
+			  <div class="row">
+				<div class="col-xs-5 " style="text-align:left; padding-right: 0px;">上证: </div>
+				<div class="col-xs-5" style="text-align:left;padding-left: 0px;padding-right: 0px;color: red;" id="dapancurrUpDown1"></div>
+			  </div>
+			</div>
+
+			<div class="col-xs-3 " style="padding-left:5px;padding-right:0px;border-right: 1px solid #eee;">
+			<div class="row">				
+			  <div class="col-xs-10 " id="dapanCurrPrice2" style="text-align:left;color: red;"></div>
+			  </div>
+			  <div class="row">
+				<div class="col-xs-5 " style="text-align:left; padding-right: 0px;">深成: </div>
+				<div class="col-xs-5" style="text-align:left;padding-left: 0px;padding-right: 0px;color: red;" id="dapancurrUpDown2"></div>
+			  </div>
+
+			</div>
+			<div class="col-xs-3 " style="padding-left:5px;padding-right:0px;border-right: 1px solid #eee;">
+			  <div class="row">				
+			  <div class="col-xs-10 " id="dapanCurrPrice3" style="text-align:left;color: red;"></div>
+			  </div>
+			  <div class="row">
+				<div class="col-xs-5 " style="text-align:left; padding-right: 0px;">创业: </div>
+				<div class="col-xs-5" style="text-align:left;padding-left: 0px;padding-right: 0px;color: red;" id="dapancurrUpDown3"></div>
+			  </div>
+			</div>
+			<div class="col-xs-2 " style="padding-left:5px;" onclick="subscribeStockNotice('1A0001,399001,399006')">
+			  <div class="row">				
+			  <div class="col-xs-10 " style="text-align:center;">
+			  <i id="marketIndexNotice"  class="fa fa-bell-slash-o" aria-hidden="true"></i></div>
+			  </div>
+			  <div class="row">
+				<div class="col-xs-10" style="text-align:center;">预警</div>
+			  </div>
+			</div>
+		</div>
+		<div id="wrapper" style="width: 96%;">	
+		<ul class="stockMounts">
+			<c:forEach items="${stockMountList}" var="stockMount" varStatus="status">
+			<li id="${stockMount.stockCode}"
+				<c:choose>
+					<c:when test="${fn:startsWith(stockMount.currUpDown, '-')}">
+						class="bg-green"
+					</c:when>
+					<c:when test="${stockMount.currUpDown=='0.0%'}">
+						class="bg-gray"
+					</c:when>
+					<c:otherwise>
+						class="bg-red"
+					</c:otherwise>
+				</c:choose>
+				>
+				<div class="row">				
+				  <div class="col-xs-8">
+				  <h3><i class="fa fa-info-circle" aria-hidden="true"></i>${stockMount.stockName}(${stockMount.stockCode})</h3>
+				  </div>
+				  <div class="col-xs-4" style="text-align:right;"><i onclick="removeStockNews('${stockMount.stockCode}')" class="fa fa-trash-o" aria-hidden="true"></i>
+				    </div>
+				  </div>
+				<div onclick="detailStockNews('${stockMount.stockCode}')">
+					<span>今日价格：${stockMount.currPrice}</span> 
+					<span>今日浮动：${stockMount.currUpDown}</span>
+					<span>当前阶段：${stockMount.pricePhase}</span>
+				</div>
+			</li>
+			</c:forEach>
+		</ul>		
+	</div>
+	</div>
+	<div style="position: fixed; bottom: 0.3rem;left: 2.2rem;padding-top: 0.2rem;font-size: 0.24rem;z-index: 3;">
+		<input type="text" style="width:3.0rem;text-align:center;height:0.5rem" id="blackStockAdd" placeholder="输入股票代码(600616)">
+	</div>
+<%@ include file="footer.jsp" %>
+<script>
+$(document).ready(function(){
+	setStockNotice("1A0001,399001,399006");
+});
+
+//初始化设置大盘预警通知
+function setStockNotice(stockCodes){
+	$.ajax({
+		url : "/darklight/stock/check",
+		type : "post",
+		data: { stockCodes: stockCodes },
+		datatype : "json",
+		success : function(data) {
+			if(data.result==1){
+				$("#marketIndexNotice").attr("class","fa fa-bell-o");
+			}
+		}
+	});
+}
+//订阅和取消订阅大盘预警通知
+function subscribeStockNotice(stockCodes){
+	if($("#marketIndexNotice").attr("class")=="fa fa-bell-slash-o"){
+		
+		 $("#marketIndexNotice").attr("class","fa fa-bell-o");
+		$.ajax({
+			url : "/darklight/stock/subscribe",
+			type : "post",
+			data: { stockCodes: stockCodes },
+			datatype : "json",
+			success : function(data) {
+				if(data.result==0){
+					alert("订阅成功！");
+				}else{
+					alert("操作失败！");
+				}	
+			}
+		});
+	}else{
+		 $("#marketIndexNotice").attr("class","fa fa-bell-slash-o");
+		$.ajax({
+			url : "/darklight/stock/unsubscribe",
+			type : "post",
+			data: { stockCodes: stockCodes },
+			datatype : "json",
+			success : function(data) {
+				if(data.result==0){
+					alert("取消订阅成功！");
+				}else{
+					alert("操作失败！");
+				}
+			}
+		});
+	}
+}
+
+var hq_str_s_sh000001;
+$.ajax({
+    url:"http://hq.sinajs.cn/list=s_sh000001",
+    dataType:"script",
+    cache:"false",
+    type:"GET",
+    success:function(a){
+        var elements=hq_str_s_sh000001.split(",");
+        $("#dapanName1").html(elements[0]);
+        $("#dapanCurrPrice1").html(elements[1]);
+        $("#dapancurrUpDown1").html(elements[3]+"%");
+        if(elements[3].indexOf('-') == -1) {
+        	 $("#dapanCurrPrice1").css("color","red");
+        	 $("#dapancurrUpDown1").css("color","red");
+            } else {
+            	 $("#dapanCurrPrice1").css("color","green");
+            	 $("#dapancurrUpDown1").css("color","green");
+                }
+        }
+    });
+
+var hq_str_s_sz399001;
+$.ajax({
+    url:"http://hq.sinajs.cn/list=s_sz399001",
+    dataType:"script",
+    cache:"false",
+    type:"GET",
+    success:function(a){
+        var elements=hq_str_s_sz399001.split(",");
+        $("#dapanName2").html(elements[0]);
+        $("#dapanCurrPrice2").html(elements[1]);
+        $("#dapancurrUpDown2").html(elements[3]+"%");
+        if(elements[3].indexOf('-') == -1) {
+       	 $("#dapanCurrPrice2").css("color","red");
+       	 $("#dapancurrUpDown2").css("color","red");
+           } else {
+           	 $("#dapanCurrPrice2").css("color","green");
+           	 $("#dapancurrUpDown2").css("color","green");
+               }
+        }
+        
+    });
+var hq_str_s_sz399006;
+$.ajax({
+    url:"http://hq.sinajs.cn/list=s_sz399006",
+    dataType:"script",
+    cache:"false",
+    type:"GET",
+    success:function(a){
+        var elements=hq_str_s_sz399006.split(",");
+        $("#dapanName3").html(elements[0]);
+        $("#dapanCurrPrice3").html(elements[1]);
+        $("#dapancurrUpDown3").html(elements[3]+"%");
+        if(elements[3].indexOf('-') == -1) {
+       	 $("#dapanCurrPrice3").css("color","red");
+       	 $("#dapancurrUpDown3").css("color","red");
+           } else {
+           	 $("#dapanCurrPrice3").css("color","green");
+           	 $("#dapancurrUpDown3").css("color","green");
+               }
+        }
+    });
+
+
+
+
+http://hq.sinajs.cn/list=s_sz399001
+
+		(function(doc, win) {
+			var docEl = doc.documentElement, resizeEvt = 'orientationchange' in window ? 'orientationchange'
+					: 'resize', recalc = function() {
+				var clientWidth = docEl.clientWidth;
+				if (!clientWidth)
+					return;
+				docEl.style.fontSize = 100 * (clientWidth / 750) + 'px';
+			};
+			if (!doc.addEventListener)
+				return;
+			win.addEventListener(resizeEvt, recalc, false);
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+		
+		//点击详情页面
+		function detailStockNews(stockCode){
+			//获取当前点击的li标签里id属性的值
+			window.location.href="/darklight/stock/detail?stockCode="+stockCode;
+		}
+		//移除不是利空消息的数据
+		function removeStockNews(stockCode){
+			//获取当前点击的li标签里id属性的值
+			var li = window.event.target.parentElement;
+			var id = li.id.split(",")[1];
+			li.parentNode.removeChild(li);	
+			$.ajax({
+				url : "/darklight/stock/cancel",
+				type : "post",
+				data: { stockCode: stockCode },
+				datatype : "json",
+				success : function(data) {
+					$("#" + stockCode).remove();
+					}
+			});
+		}
+
+		$("#blackStockAdd").blur(function(){
+			
+			if($("#blackStockAdd").val().length == 6) {
+				var stockCode = $("#blackStockAdd").val();
+				$.ajax({
+					url : "/darklight/stock/collectByManual",
+					type : "post",
+					data: { stockCode: stockCode },
+					datatype : "json",
+					success : function(data) {
+						if(data.result ==0) {
+
+							var li;
+							var jsonData = eval(data.stockDetail);
+								//循环获取数据
+								var id = jsonData.stockCode;
+								li = document.createElement("li");
+								//为li标签设置id属性并赋值
+								li.setAttribute("id", id);
+								var liNumber = $("#wrapper li").length;
+								if(jsonData.currUpDown.startsWith("-")){
+									li.setAttribute("class", "bg-green");
+								}else if(jsonData.currUpDown=='0.0%'){
+									li.setAttribute("class", "bg-gray");
+								}else{
+									li.setAttribute("class", "bg-red");
+								}
+								//拼接HTML代码
+								li.innerHTML = "<div class='row'> <div class='col-xs-8'><h3 onclick='detailStockNews(&#39;" + jsonData.stockCode+"&#39;)'>"
+								+"<i class='fa fa-info-circle' aria-hidden='true'></i>"+jsonData.stockName+"(" + jsonData.stockCode +")</h3>"
+
+								+"</div><div class='col-xs-4' style='text-align:right;'><i onclick='removeStockNews(&#39;" + jsonData.stockCode + "&#39;)'  class='fa fa-trash-o' aria-hidden='true'></i>"
+								+"</div></div>"
+								+"<span>今日价格：" + jsonData.currPrice + "</span>	<span > 今日浮动：" + jsonData.currUpDown + "</span><span>当前阶段："+jsonData.pricePhase+"</span>"
+								$("#wrapper ul").append(li);
+								
+								toastr.options.positionClass = "toast-top-center";
+								toastr.info('add successful');
+								
+						}else if(data.result ==1 ) {
+								alert("已经订阅该股票！");
+							} else if (data.result ==2) {
+								alert("错误的股票代码！");
+								}
+						}
+					
+				});	
+			}
+		});
+		
+</script>
+</body>
+</html>

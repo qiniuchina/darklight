@@ -1,0 +1,45 @@
+package com.dxc.darklight.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.dxc.darklight.dao.StockNewsDao;
+import com.dxc.darklight.model.StockCurrentPrice;
+import com.dxc.darklight.service.BaseService;
+import com.dxc.darklight.service.UserStockNewsService;
+
+@Service
+public class UserStockNewsServiceImpl extends BaseService implements UserStockNewsService {
+
+	private static final Logger log = LogManager.getLogger(UserStockNewsServiceImpl.class);
+
+	@Autowired
+	StockNewsDao dao;
+
+	@Override
+	public List<String> getAllUserStockCodes() {
+		// TODO Auto-generated method stub
+		return dao.getAllUserStockCodes();
+	}
+
+	@Override
+	public void saveUserStockCodes(StockCurrentPrice sc) {
+		dao.saveUserStockCodes(sc);
+	}
+
+	@Override
+	public void deletePreviousData(int hours) {
+		SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.HOUR, hours);
+		String time = sf.format(cal.getTime());
+		dao.deletePreviousDataForPrice(time);
+	}
+	
+}

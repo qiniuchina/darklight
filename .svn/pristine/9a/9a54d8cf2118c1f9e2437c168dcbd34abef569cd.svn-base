@@ -1,0 +1,8 @@
+package com.dxc.darklight.service;
+
+public interface UserStockService {
+
+	public void saveFavoriteStock(String userId, String stockCode);
+
+	public void deleteFavoriteStock(String stockCode, String userId);
+}
