@@ -51,4 +51,5 @@ public class App {
   
     public static String STOCK_NEWS_URL_PRE="http://www.76idea.com/darklight/stock/detail?stockCode=";
     public static String STOCK_LIST_URL_PRE="http://www.76idea.com/darklight/stock/list?";
+    public static String MOR_STOCK_LIST_URL_PRE="http://www.76idea.com:8081/#/";
 }

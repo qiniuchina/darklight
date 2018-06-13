@@ -14,6 +14,7 @@ import com.dxc.darklight.spider.IndividualStockNewsSpider;
 import com.dxc.darklight.spider.PriceMsgAfterStockClosed;
 import com.dxc.darklight.spider.StockCommentSpider;
 import com.dxc.darklight.spider.TopNewsSpider;
+import com.dxc.darklight.spider.BlackSwanStockMsg;
 import com.dxc.darklight.weixin.token.TokenService;
 
 public class ServiceFactory {
@@ -56,6 +57,9 @@ public class ServiceFactory {
 	public static StockCommentService createStockCommentService() {
 		return appContext.getBean(StockCommentService.class);
 	}
+	public static BlackSwanStocksService createBlackSwanStocksService() {
+		return appContext.getBean(BlackSwanStocksService.class);
+	}
 	
 	public static void main(String[] args) {
 		String function = args[0];
@@ -97,6 +101,10 @@ public class ServiceFactory {
 		}else if ("StockCommentSpider".equals(function)) {
 			// 获取大盘股评综述，每天下午6点一次
 			StockCommentSpider.work();
+		}
+		else if ("BlackSwanStockMsg".equals(function)) {
+			// 获取黑天鹅股票，每天下午6点一次
+			BlackSwanStockMsg.work();
 		}
 
 	}
